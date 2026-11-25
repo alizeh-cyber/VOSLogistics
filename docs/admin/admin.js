@@ -249,7 +249,7 @@
     var chips = [["open", "All open", cnt(function (a) { return OPEN_STAGES.indexOf(a.status) >= 0; })], ["due", "Needs follow-up", due]]
       .concat(STAGES.map(function (st) { return [st[0], st[1], cnt(function (a) { return a.status === st[0]; })]; }))
       .concat([["all", "Everyone", data.apps.length]]);
-    v.innerHTML = '<div class="hirelayout"><div class="hiremain">' + calendarHtml() + '<div class="pipe">' + chips.map(function (c) {
+    v.innerHTML = '<div class="hirelayout"><div class="hiremain">' + calendarHtml() + '<h2 class="sechead">Applicants</h2><div class="pipe">' + chips.map(function (c) {
         if (!c[2] && ["open", "all", "new"].indexOf(c[0]) < 0 && c[0] !== appF) return "";
         return '<button class="pstage' + (appF === c[0] ? " on" : "") + (c[0] === "due" && c[2] ? " warn" : "") + '" data-f="' + c[0] + '">' + esc(c[1]) + " <b>" + c[2] + "</b></button>";
       }).join("") + "</div>" +
@@ -944,6 +944,21 @@
       err.className = "notice"; err.textContent = "Saved."; types = data.types.map(function (t) { return Object.assign({}, t); }); rowsHtml();
     };
   }
+
+  // ---------- Phone-friendly tables: label each cell with its column heading ----------
+  function labelTables(root) {
+    (root || document).querySelectorAll("table:not(.schedgrid)").forEach(function (t) {
+      var heads = Array.prototype.map.call(t.querySelectorAll("thead th"), function (th) { return th.textContent.trim(); });
+      if (!heads.length) return;
+      t.classList.add("resp");
+      t.querySelectorAll("tbody tr, tfoot tr").forEach(function (tr) {
+        Array.prototype.forEach.call(tr.children, function (td, i) { if (!td.hasAttribute("data-label")) td.setAttribute("data-label", heads[i] || ""); });
+      });
+    });
+  }
+  var labelT = null;
+  new MutationObserver(function () { clearTimeout(labelT); labelT = setTimeout(function () { labelTables($("app")); }, 30); })
+    .observe(document.getElementById("app"), { childList: true, subtree: true });
 
   // ---------- Start ----------
   sb.auth.getSession().then(function (r) { session = r.data.session; start(); });
