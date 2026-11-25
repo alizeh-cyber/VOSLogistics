@@ -278,3 +278,9 @@ revoke execute on function public.is_admin() from public, anon;
 revoke execute on function public.can_book() from public, anon;
 grant execute on function public.is_admin() to authenticated;
 grant execute on function public.can_book() to authenticated;
+
+-- ---------- Admin cleanup rights (applied as vos_admin_can_delete_waiver_pdfs) ----------
+create policy "admin can delete waiver pdfs" on storage.objects
+  for delete to authenticated using (bucket_id = 'waivers' and public.is_admin());
+create policy "admin deletes waivers" on public.waiver_signatures
+  for delete to authenticated using (public.is_admin());

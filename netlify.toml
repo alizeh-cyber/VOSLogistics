@@ -1,0 +1,54 @@
+# VOS Logistics site – deployed by Netlify straight from this repo (no build step).
+[build]
+  publish = "site"
+
+# Short links
+[[redirects]]
+  from = "/jobs"
+  to = "/"
+  status = 301
+
+[[redirects]]
+  from = "/jobs/*"
+  to = "/"
+  status = 301
+
+[[redirects]]
+  from = "/shifts"
+  to = "/portal/"
+  status = 301
+
+[[redirects]]
+  from = "/shifts/*"
+  to = "/portal/"
+  status = 301
+
+[[redirects]]
+  from = "/login"
+  to = "/portal/"
+  status = 301
+
+# Keep private pages out of search engines
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/portal/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/sign/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

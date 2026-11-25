@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lime Field Operations Associate (Austin) – VOS Logistics | $30–$50/hr</title>
+<meta name="description" content="VOS Logistics, Lime's operations partner in Austin, is hiring Field Operations Associates. $30–$50/hr, paid weekly, 20+ hrs/week. Apply online.">
+<link rel="canonical" href="https://vos-logistics-jobs.netlify.app/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "JobPosting",
+  "title": "Lime Field Operations Associate (Austin)",
+  "description": "<p>VOS Logistics | $30–$50/hr, paid weekly | 20+ hrs/week</p><p>VOS Logistics is Lime’s operations partner in Austin. We keep the city’s e-scooter fleet charged, in good shape, and where riders need it. Lime is the world’s largest shared e-scooter and e-bike company, with over a billion rides across about 230 cities. Lime recently went public, and as it grows, we’re growing with it.</p><p>We’re building a dependable local team and want people who can work hard.</p><p><strong>What you’ll do</strong></p><ul><li>Swap batteries on e-scooters across your assigned zones</li><li>Move scooters to high-demand areas based on rider activity</li><li>Keep the fleet clean, safe, and ready to ride</li><li>Use the Lime ops app to track tasks and report issues</li></ul><p><strong>What we’re looking for</strong></p><ul><li>Reliable truck, van, SUV, or vehicle with a rack or trailer</li><li>A smartphone</li><li>Able to lift 50+ lbs regularly</li><li>Available at least 20 hours per week on a consistent schedule</li><li>Dependable, self-directed, and comfortable working independently</li></ul><p><strong>What you get</strong></p><ul><li>$30–$50/hr, paid weekly</li><li>Flexible scheduling: you set your weekly hours with us, with a 20-hour minimum</li><li>A steady role with a growing company</li><li>Room to move up as the team expands. Top performers will be first in line for lead and higher-responsibility roles.</li></ul><p>Please note that this role might involve night and early morning shifts.</p>",
+  "datePosted": "2026-11-20",
+  "validThrough": "2027-02-20T23:59:00-06:00",
+  "employmentType": "CONTRACTOR",
+  "hiringOrganization": {
+    "@type": "Organization",
+    "name": "VOS Logistics"
+  },
+  "jobLocation": {
+    "@type": "Place",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Austin",
+      "addressRegion": "TX",
+      "addressCountry": "US"
+    }
+  },
+  "baseSalary": {
+    "@type": "MonetaryAmount",
+    "currency": "USD",
+    "value": {
+      "@type": "QuantitativeValue",
+      "minValue": 30,
+      "maxValue": 50,
+      "unitText": "HOUR"
+    }
+  },
+  "directApply": true
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#14181d; --muted:#5d6670; --line:#e3e6ea; --soft:#f6f7f9; --accent:#2f5d1e; --accent-ink:#ffffff; --err:#b3261e; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:#fff; line-height:1.6; font-size:16px; -webkit-font-smoothing:antialiased; }
+  .topbar { border-bottom:1px solid var(--line); }
+  .topbar .wrap { display:flex; align-items:center; justify-content:space-between; height:60px; }
+  .brand { font-weight:700; letter-spacing:.06em; font-size:14px; text-transform:uppercase; }
+  .brand span { color:var(--muted); font-weight:500; letter-spacing:.02em; text-transform:none; margin-left:10px; }
+  .wrap { max-width:1040px; margin:0 auto; padding:0 24px; }
+  .hero { padding:48px 0 36px; border-bottom:1px solid var(--line); }
+  .eyebrow { font-size:13px; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:.08em; }
+  .hero h1 { margin:10px 0 12px; font-size:40px; line-height:1.15; font-weight:700; letter-spacing:-.02em; }
+  .meta { color:var(--muted); font-size:15px; display:flex; flex-wrap:wrap; gap:6px 18px; }
+  .meta span + span::before { content:"·"; margin-right:18px; color:#b8bec5; }
+  .btn { display:inline-block; background:var(--accent); color:var(--accent-ink); padding:12px 22px; border-radius:6px; font-weight:600; font-size:15px; text-decoration:none; border:none; cursor:pointer; }
+  .btn:hover { filter:brightness(1.08); }
+  .hero .btn { margin-top:24px; }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:56px; padding:40px 0 80px; }
+  article section { padding:0 0 28px; margin:0 0 28px; border-bottom:1px solid var(--line); }
+  article section:last-of-type { border-bottom:none; }
+  h2 { font-size:20px; font-weight:600; margin:0 0 10px; letter-spacing:-.01em; }
+  p { margin:0 0 12px; }
+  ul { padding-left:20px; margin:6px 0; } li { margin:4px 0; }
+  table { border-collapse:collapse; width:100%; margin:12px 0 14px; font-size:15px; }
+  th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--line); }
+  th { font-weight:600; color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #cfd4da; }
+  .note { font-size:13px; color:var(--muted); }
+  aside .panel { position:sticky; top:24px; border:1px solid var(--line); border-radius:8px; padding:22px; }
+  aside dl { margin:0 0 20px; }
+  aside dt { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin-top:14px; }
+  aside dt:first-child { margin-top:0; }
+  aside dd { margin:2px 0 0; font-weight:500; }
+  aside .btn { width:100%; text-align:center; }
+  #apply { scroll-margin-top:20px; }
+  .fs { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin:28px 0 0; padding-top:20px; border-top:1px solid var(--line); }
+  .fs:first-child { margin-top:0; padding-top:0; border-top:none; }
+  input[type=date] { width:100%; padding:10px 12px; font-size:16px; border:1px solid #cfd4da; border-radius:6px; font-family:inherit; background:#fff; color:var(--ink); }
+  .formbox { background:var(--soft); border:1px solid var(--line); border-radius:8px; padding:26px; }
+  label { display:block; font-weight:500; font-size:14px; margin:16px 0 6px; }
+  input[type=text], input[type=email], input[type=tel], select, textarea { width:100%; padding:11px 12px; font-size:16px; border:1px solid #cfd4da; border-radius:6px; font-family:inherit; background:#fff; color:var(--ink); }
+  textarea { min-height:80px; }
+  input:focus, select:focus, textarea:focus { outline:2px solid rgba(47,93,30,.25); border-color:var(--accent); }
+  .row { display:flex; gap:14px; } .row > div { flex:1; }
+  .days, .yn { display:flex; flex-wrap:wrap; gap:8px; }
+  .days label, .yn label { display:flex; align-items:center; gap:7px; font-weight:500; margin:0; background:#fff; border:1px solid #cfd4da; border-radius:6px; padding:8px 12px; cursor:pointer; font-size:14px; }
+  .days label:has(input:checked), .yn label:has(input:checked) { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+  input[type=checkbox], input[type=radio] { width:16px; height:16px; accent-color:var(--accent); margin:0; }
+  button.primary { width:100%; margin-top:24px; padding:14px; font-size:16px; }
+  button.primary:disabled { opacity:.55; cursor:default; }
+  .error { color:var(--err); font-size:14px; margin-top:10px; min-height:1em; }
+  .hidden { display:none; }
+  .done { text-align:center; padding:20px 0; }
+  footer { border-top:1px solid var(--line); color:var(--muted); font-size:13px; padding:22px 0 30px; }
+  @media (max-width:860px) {
+    .layout { grid-template-columns:1fr; gap:0; padding-top:28px; }
+    aside { order:-1; margin-bottom:28px; } aside .panel { position:static; } aside .btn { display:none; } aside dl { margin:0; }
+    .hero { padding:32px 0 26px; } .hero h1 { font-size:30px; }
+  }
+  @media (max-width:520px) { .meta { gap:4px 14px; } .meta span + span::before { display:none; } .meta span { background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:2px 8px; font-size:13px; } .row { flex-direction:column; gap:0; } .formbox { padding:18px; } .brand span { display:none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar"><div class="wrap"><div class="brand">VOS Logistics<span>Lime operations partner, Austin</span></div><a class="btn" href="#apply" style="padding:8px 16px;font-size:14px">Apply</a></div></div>
+  <div class="hero"><div class="wrap">
+    <div class="eyebrow">VOS Logistics · Now hiring</div>
+    <h1>Lime Field Operations Associate</h1>
+    <div class="meta"><span>Austin, TX</span><span>$30–$50/hr, paid weekly</span><span>20+ hrs/week</span><span>Independent contractor (1099)</span></div>
+    <a class="btn" href="#apply">Apply now</a>
+  </div></div>
+</header>
+
+<main class="wrap">
+<div class="layout">
+<article>
+  <section>
+    <p>VOS Logistics is Lime’s operations partner in Austin. We keep the city’s e-scooter fleet charged, in good shape, and where riders need it. Lime is the world’s largest shared e-scooter and e-bike company, with over a billion rides across about 230 cities. Lime recently went public, and as it grows, we’re growing with it.</p>
+    <p>We’re building a dependable local team and want people who can work hard.</p>
+  </section>
+
+  <section>
+    <h2>What you’ll do</h2>
+    <ul>
+      <li>Swap batteries on e-scooters across your assigned zones</li>
+      <li>Move scooters to high-demand areas based on rider activity</li>
+      <li>Keep the fleet clean, safe, and ready to ride</li>
+      <li>Use the Lime ops app to track tasks and report issues</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What we’re looking for</h2>
+    <ul>
+      <li>Reliable truck, van, SUV, or vehicle with a rack or trailer</li>
+      <li>A smartphone</li>
+      <li>Able to lift 50+ lbs regularly</li>
+      <li>Available at least 20 hours per week on a consistent schedule</li>
+      <li>Dependable, self-directed, and comfortable working independently</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What you get</h2>
+    <ul>
+      <li>$30–$50/hr, paid weekly</li>
+      <li>Flexible scheduling: you set your weekly hours with us, with a 20-hour minimum</li>
+      <li>A steady role with a growing company</li>
+      <li>Room to move up as the team expands. Top performers will be first in line for lead and higher-responsibility roles.</li>
+    </ul>
+    <p class="note" style="margin-top:14px">Please note that this role might involve night and early morning shifts.</p>
+  </section>
+
+  <section id="apply">
+    <h2>Apply</h2>
+    <div class="formbox">
+    <div id="formView">
+      <p class="note">Takes about 3 minutes. If it's a fit, our hiring lead will reach out to schedule a call.</p>
+      <form id="applyForm" novalidate>
+        <h3 class="fs">Contact</h3>
+        <label for="fullName">Full name</label>
+        <input type="text" id="fullName" autocomplete="name">
+        <div class="row">
+          <div><label for="phone">Phone</label><input type="tel" id="phone" autocomplete="tel"></div>
+          <div><label for="email">Email</label><input type="email" id="email" autocomplete="email"></div>
+        </div>
+        <label for="zip">Home ZIP code</label>
+        <input type="text" id="zip" inputmode="numeric" maxlength="5" autocomplete="postal-code" style="max-width:160px">
+
+        <h3 class="fs">Availability</h3>
+        <label for="hoursWeek">How many hours a week are you looking to work?</label>
+        <select id="hoursWeek">
+          <option value="">Choose one</option>
+          <option>20–25</option><option>25–30</option><option>30–40</option><option>40+</option>
+        </select>
+
+        <label>Which days can you work?</label>
+        <div class="days" id="days">
+          <label><input type="checkbox" value="Mon">Mon</label>
+          <label><input type="checkbox" value="Tue">Tue</label>
+          <label><input type="checkbox" value="Wed">Wed</label>
+          <label><input type="checkbox" value="Thu">Thu</label>
+          <label><input type="checkbox" value="Fri">Fri</label>
+          <label><input type="checkbox" value="Sat">Sat</label>
+          <label><input type="checkbox" value="Sun">Sun</label>
+        </div>
+
+        <label>Which times work for you?</label>
+        <div class="days" id="times">
+          <label><input type="checkbox" value="Early morning (4–8 AM)">Early morning (4–8 AM)</label>
+          <label><input type="checkbox" value="Daytime (8 AM–4 PM)">Daytime (8 AM–4 PM)</label>
+          <label><input type="checkbox" value="Evening (4 PM–midnight)">Evening (4 PM–midnight)</label>
+          <label><input type="checkbox" value="Overnight (midnight–4 AM)">Overnight (midnight–4 AM)</label>
+        </div>
+
+
+        <label for="startDate">Earliest start date</label>
+        <input type="date" id="startDate" style="max-width:220px">
+
+        <h3 class="fs">Vehicle and requirements</h3>
+        <label for="vehicle">What vehicle would you use?</label>
+        <select id="vehicle">
+          <option value="">Choose one</option>
+          <option>Pickup truck</option><option>Cargo van or minivan</option><option>SUV</option>
+          <option>Car with a rack or trailer</option><option>Other</option><option>I don't have a vehicle</option>
+        </select>
+
+        <label>Do you have a valid driver's license and auto insurance?</label>
+        <div class="yn">
+          <label><input type="radio" name="license" value="yes">Yes</label>
+          <label><input type="radio" name="license" value="no">No</label>
+        </div>
+
+        <label>Can you lift 50+ lbs regularly?</label>
+        <div class="yn">
+          <label><input type="radio" name="lift" value="yes">Yes</label>
+          <label><input type="radio" name="lift" value="no">No</label>
+        </div>
+
+        <label>Are you 18 or older?</label>
+        <div class="yn">
+          <label><input type="radio" name="adult" value="yes">Yes</label>
+          <label><input type="radio" name="adult" value="no">No</label>
+        </div>
+
+        <h3 class="fs">Final details</h3>
+        <label for="notes">Anything else you would like us to know? (optional)</label>
+        <textarea id="notes"></textarea>
+
+        <label for="heard">How did you hear about us? (optional)</label>
+        <select id="heard">
+          <option value="">Choose one</option>
+          <option>Google</option><option>Indeed</option><option>LinkedIn</option><option>WorkInTexas</option>
+          <option>Facebook</option><option>Craigslist</option><option>Friend or referral</option><option>Other</option>
+        </select>
+
+        <button type="submit" class="btn primary" id="submitBtn">Submit application</button>
+        <div class="error" id="error"></div>
+      </form>
+    </div>
+    <div id="doneView" class="done hidden">
+      <h2>Application sent</h2>
+      <p>Thanks for applying. If it's a fit, our hiring lead will reach out to schedule a call.</p>
+    </div>
+    </div>
+  </section>
+</article>
+<aside>
+  <div class="panel">
+    <dl>
+      <dt>Location</dt><dd>Austin, TX</dd>
+      <dt>Pay</dt><dd>$30–$50/hr, paid weekly</dd>
+      <dt>Hours</dt><dd>20+ hrs/week</dd>
+      <dt>Shifts</dt><dd>May include nights and early mornings</dd>
+      <dt>Type</dt><dd>Independent contractor (1099)</dd>
+    </dl>
+    <a class="btn" href="#apply">Apply now</a>
+  </div>
+</aside>
+</div>
+</main>
+<!-- Hidden copy of the application form so Netlify registers it and emails each submission. -->
+<form name="job-application" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input name="bot-field"><input name="name"><input name="phone"><input name="email"><input name="zip">
+  <input name="hours_per_week"><input name="days"><input name="times"><input name="start_date"><input name="vehicle">
+  <input name="license_insurance"><input name="can_lift_50"><input name="18_plus">
+  <textarea name="anything_else"></textarea><input name="heard_from">
+</form>
+<footer><div class="wrap">© 2026 VOS Logistics · Austin, Texas</div></footer>
+
+<script>
+const SUPABASE_URL = "https://xzlnzldolzqlhbqfgjeh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_NqaGDUXVR33CekpHZyntFg_f-i5FDGy";
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+const radio = n => (document.querySelector(`input[name="${n}"]:checked`) || {}).value;
+
+$("applyForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const err = $("error"); err.textContent = "";
+  const v = id => $(id).value.trim();
+  const checked = id => [...document.querySelectorAll(`#${id} input:checked`)].map(x => x.value);
+  const yes = n => radio(n) === undefined ? null : radio(n) === "yes";
+  const days = checked("days"), times = checked("times");
+  const vehicle = $("vehicle").value;
+  const row = {
+    full_name: v("fullName"), phone: v("phone"), email: v("email"), zip_code: v("zip"),
+    hours_per_week: $("hoursWeek").value, days_available: days, preferred_times: times,
+    start_date: v("startDate") || null,
+    vehicle_type: vehicle, has_vehicle: !!vehicle && vehicle !== "I don't have a vehicle",
+    has_license_insurance: yes("license"), can_lift_50: yes("lift"), is_18_plus: yes("adult"),
+    can_do_20_hours: !!$("hoursWeek").value,
+    notes: v("notes") || null, heard_from: $("heard").value || null
+  };
+  if (!row.full_name || !row.phone || !row.email) return err.textContent = "Please add your name, phone and email.";
+  if (!/^\S+@\S+\.\S+$/.test(row.email)) return err.textContent = "Please enter a valid email.";
+  if (!/^\d{5}$/.test(row.zip_code)) return err.textContent = "Please enter your 5-digit ZIP code.";
+  if (!row.hours_per_week) return err.textContent = "Please choose how many hours a week you're looking for.";
+  if (!days.length) return err.textContent = "Please pick at least one day you can work.";
+  if (!times.length) return err.textContent = "Please pick at least one time of day that works.";
+  if (!row.start_date) return err.textContent = "Please add your earliest start date.";
+  if (!vehicle) return err.textContent = "Please choose the vehicle you'd use.";
+  if (row.has_license_insurance === null || row.can_lift_50 === null || row.is_18_plus === null) return err.textContent = "Please answer every yes/no question.";
+
+  const btn = $("submitBtn"); btn.disabled = true; btn.textContent = "Sending…";
+  const { error } = await supa.from("job_applications").insert(row);
+  if (error) {
+    console.error(error);
+    err.textContent = "Something went wrong. Please try again in a minute.";
+    btn.disabled = false; btn.textContent = "Submit application";
+    return;
+  }
+  // Copy to Netlify Forms so an email notification goes out (doesn't block the applicant)
+  const yn = b => b ? "Yes" : "No";
+  fetch("/", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ "form-name": "job-application", name: row.full_name, phone: row.phone, email: row.email,
+      zip: row.zip_code, hours_per_week: row.hours_per_week, days: days.join(", "), times: times.join(", "),
+      start_date: row.start_date, vehicle: vehicle,
+      license_insurance: yn(row.has_license_insurance), can_lift_50: yn(row.can_lift_50), "18_plus": yn(row.is_18_plus),
+      anything_else: row.notes || "", heard_from: row.heard_from || "" }).toString()
+  }).catch(e => console.error(e));
+  $("formView").classList.add("hidden");
+  $("doneView").classList.remove("hidden");
+});
+</script>
+</body>
+</html>
