@@ -5,6 +5,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var app = $("app"), who = $("who");
 
+  var isAdmin = false;
   var session = null, me = null, waiver = null, settings = null, SLOTS = [], rows = {};
   var week = 0, day = (new Date().getDay() + 6) % 7, recovering = false, live = null, timer = null;
 
@@ -15,8 +16,9 @@
   function setWho() {
     if (!session) { who.innerHTML = ""; return; }
     who.innerHTML = "<b>" + esc(me ? me.full_name : session.user.email) + "</b>" +
+      (isAdmin ? '<a class="btn sm" href="../admin/">Admin</a>' : "") +
       '<button class="btn ghost sm" id="logout">Log out</button>';
-    $("logout").onclick = async function () { await sb.auth.signOut(); session = null; me = null; stopLive(); route(); };
+    $("logout").onclick = async function () { await sb.auth.signOut(); session = null; me = null; isAdmin = false; stopLive(); route(); };
   }
 
   // ---------- Auth views ----------
@@ -108,6 +110,7 @@
     if (session.user.is_anonymous) { await sb.auth.signOut(); session = null; showAuth("login"); return; }
     app.innerHTML = '<p class="muted">Loading…</p>';
     var r = await sb.from("associates").select("*").eq("user_id", session.user.id).maybeSingle();
+    var ad = await sb.rpc("is_admin"); isAdmin = !!ad.data;
     me = r.data || null; setWho();
     if (!me) {
       var adm = await sb.rpc("is_admin");

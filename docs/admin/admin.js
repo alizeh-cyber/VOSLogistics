@@ -43,7 +43,10 @@
     if (!session || session.user.is_anonymous) { showLogin(); return; }
     var a = await sb.rpc("is_admin");
     if (!a.data) { await sb.auth.signOut(); session = null; showLogin("This account doesn't have admin access."); return; }
-    who.innerHTML = "<b>" + esc(session.user.email) + '</b><button class="btn ghost sm" id="lo">Log out</button>';
+    var mine = await sb.from("associates").select("status").eq("user_id", session.user.id).maybeSingle();
+    who.innerHTML = "<b>" + esc(session.user.email) + "</b>" +
+      (mine.data && mine.data.status === "approved" ? '<a class="btn ghost sm" href="../portal/">My portal</a>' : "") +
+      '<button class="btn ghost sm" id="lo">Log out</button>';
     $("lo").onclick = async function () { await sb.auth.signOut(); session = null; showLogin(); };
     app.innerHTML = '<div class="tabs" id="mainTabs"></div><div id="view"><p class="muted">Loading…</p></div>';
     await loadAll();
