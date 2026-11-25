@@ -19,8 +19,9 @@
   var schedWeek = 0;
   try { tab = localStorage.getItem("vosAdminTab") || "apps"; } catch (e) {}
 
-  function fmtDate(s) { return s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""; }
-  function fmtDateTime(s) { return s ? new Date(s).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""; }
+  var TZ = "America/Chicago"; // VOS works in Austin time
+  function fmtDate(s) { return s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: TZ }) : ""; }
+  function fmtDateTime(s) { return s ? new Date(s).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: TZ }) : ""; }
   function badge(map, k) { var v = map[k] || [k, ""]; return '<span class="badge ' + v[1] + '">' + esc(v[0]) + "</span>"; }
   function yn(b) { return b === true ? "Yes" : b === false ? "No" : "—"; }
   function list(a) { return a && a.length ? a.join(", ") : "—"; }
@@ -30,6 +31,7 @@
 
   // ---------- Login ----------
   function showLogin(msg) {
+    $("mainTabs").classList.add("hidden"); $("mainTabs").innerHTML = "";
     who.innerHTML = "";
     app.innerHTML = '<div class="card" style="max-width:440px;margin:30px auto"><div class="eyebrow">VOS Logistics</div><h1>Admin login</h1>' +
       '<form id="lf" novalidate><label for="le">Email</label><input type="email" id="le" autocomplete="email">' +
@@ -54,7 +56,8 @@
       (mine.data && mine.data.status === "approved" ? '<a class="btn ghost sm" href="../portal/">My portal</a>' : "") +
       '<button class="btn ghost sm" id="lo">Log out</button>';
     $("lo").onclick = async function () { await sb.auth.signOut(); session = null; showLogin(); };
-    app.innerHTML = '<div class="tabs" id="mainTabs"></div><div id="view"><p class="muted">Loading…</p></div>';
+    $("mainTabs").classList.remove("hidden");
+    app.innerHTML = '<div class="pagehead" id="pagehead"></div><div id="view"><p class="muted">Loading…</p></div>';
     await loadAll();
     draw();
   }
@@ -90,9 +93,21 @@
     var pending = data.assoc.filter(function (a) { return a.status === "pending"; }).length;
     var newApps = data.apps.filter(function (a) { return a.status === "new"; }).length;
     var tabs = [["apps", "Hiring", newApps], ["roster", "Associates", pending], ["team", "Team list", 0], ["payroll", "Payroll", 0], ["referrals", "Referrals", 0], ["schedule", "Schedule", 0], ["waivers", "Waivers", 0], ["settings", "Shift settings", 0]];
-    $("mainTabs").innerHTML = tabs.map(function (t) {
-      return '<button class="tab' + (tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '">' + t[1] + (t[2] ? '<span class="count">' + t[2] + "</span>" : "") + "</button>";
-    }).join("");
+    $("mainTabs").innerHTML = '<div class="navin">' + tabs.map(function (t) {
+      return '<button class="atab' + (tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '"' + (tab === t[0] ? ' aria-current="page"' : "") + ">" + t[1] + (t[2] ? '<span class="count">' + t[2] + "</span>" : "") + "</button>";
+    }).join("") + "</div>";
+    var PAGES = {
+      apps: ["Hiring", "Track each applicant from first contact to training."],
+      roster: ["Associates", "Approve new accounts, set pay plans and manage access."],
+      team: ["Team list", "People you've added. When they sign up, they get the pay plan listed here."],
+      payroll: ["Payroll", "Upload Lime's weekly report. Everyone who worked sees it in their Pay tab."],
+      referrals: ["Referrals", "$0.05 off per task for 3 months once both people reach 200 tasks."],
+      schedule: ["Schedule", "Who's signed up for each shift, week by week."],
+      waivers: ["Waivers", "Every signed contractor agreement and waiver."],
+      settings: ["Shift settings", "Daily shift times, spots per shift and sign-up rules."]
+    };
+    $("pagehead").innerHTML = "<h1>" + esc(PAGES[tab][0]) + '</h1><p class="muted">' + esc(PAGES[tab][1]) + "</p>";
+    var on = $("mainTabs").querySelector(".atab.on"); if (on && on.scrollIntoView) on.scrollIntoView({ block: "nearest", inline: "nearest" });
     $("mainTabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { tab = b.dataset.t; try { localStorage.setItem("vosAdminTab", tab); } catch (e) {} draw(); }; });
     ({ apps: drawApps, roster: drawRoster, team: drawTeam, payroll: drawPayroll, referrals: drawReferrals, schedule: drawSchedule, waivers: drawWaivers, settings: drawSettings })[tab]();
   }
@@ -119,8 +134,11 @@
     listApps();
   }
   function stageIdx(st) { for (var i = 0; i < STAGES.length; i++) if (STAGES[i][0] === st) return i; return -1; }
-  function fmtWhen(s) { return s ? new Date(s).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""; }
-  function localInput(s) { if (!s) return ""; var d = new Date(s); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); }
+  function fmtWhen(s) { return s ? new Date(s).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: TZ }) : ""; }
+  // Austin-time helpers for the date/time box (works the same on any device's clock)
+  function tzOffsetMin(d) { return (new Date(d.toLocaleString("en-US", { timeZone: TZ })) - new Date(d.toLocaleString("en-US", { timeZone: "UTC" }))) / 6e4; }
+  function localInput(s) { if (!s) return ""; var d = new Date(s); return new Date(d.getTime() + tzOffsetMin(d) * 6e4).toISOString().slice(0, 16); }
+  function fromLocalInput(v) { if (!v) return null; var g = new Date(v + ":00Z"); return new Date(g.getTime() - tzOffsetMin(g) * 6e4).toISOString(); }
   function checklist(a) {
     var p = data.progress[a.id] || {};
     var item = function (ok, label) { return '<span class="ck' + (ok ? " ok" : "") + '">' + (ok ? "✓" : "○") + " " + label + "</span>"; };
@@ -147,17 +165,17 @@
       return '<details class="app" data-id="' + a.id + '"' + (appOpen[a.id] ? " open" : "") + '><summary><span class="who2"><b>' + esc(a.full_name) + '</b> <span class="muted small">· ' + esc(a.phone) + " · applied " + fmtDate(a.applied_at) + "</span>" + (nxt ? "<br>" + nxt : "") + "</span>" + badge(APP_STATUS, a.status) + "</summary>" +
         '<div class="appbody"><div class="stagebar">' + STAGES.slice(0, 9).map(function (st, i) { var cur = stageIdx(a.status); return '<span class="sb' + (i < cur && cur < 9 ? " done" : "") + (i === cur ? " cur" : "") + '" title="' + st[1] + '"></span>'; }).join("") + "</div>" +
         '<div class="grid2" style="margin-top:12px"><div>' +
-          '<label style="margin-top:0">Stage</label><div class="row" style="gap:8px;align-items:center"><select data-stage="' + a.id + '">' + STAGES.map(function (st) { return '<option value="' + st[0] + '"' + (a.status === st[0] ? " selected" : "") + ">" + st[1] + "</option>"; }).join("") + "</select>" +
+          '<label style="margin-top:0">Stage</label><div class="hrow" style="gap:8px;align-items:center"><select data-stage="' + a.id + '">' + STAGES.map(function (st) { return '<option value="' + st[0] + '"' + (a.status === st[0] ? " selected" : "") + ">" + st[1] + "</option>"; }).join("") + "</select>" +
           (stageIdx(a.status) < 8 ? '<button class="btn sm" style="flex:0 0 auto" data-advance="' + a.id + '">Next stage →</button>' : "") + "</div>" +
           '<label>Next step</label><input type="text" data-nstext="' + a.id + '" placeholder="e.g. Interview call, Training at warehouse" value="' + esc(a.next_step || "") + '">' +
-          '<div class="row" style="gap:8px;margin-top:8px;align-items:center"><input type="datetime-local" data-nswhen="' + a.id + '" value="' + localInput(a.next_step_at) + '"><button class="btn ghost sm" style="flex:0 0 auto" data-nssave="' + a.id + '">Save</button><button class="link small" style="flex:0 0 auto" data-nsclear="' + a.id + '">Clear</button></div>' +
+          '<div class="hrow" style="gap:8px;margin-top:8px;align-items:center"><input type="datetime-local" data-nswhen="' + a.id + '" value="' + localInput(a.next_step_at) + '"><button class="btn ghost sm" style="flex:0 0 auto" data-nssave="' + a.id + '">Save</button><button class="link small" style="flex:0 0 auto" data-nsclear="' + a.id + '">Clear</button></div>' +
           '<label>Onboarding</label>' + checklist(a) +
           ((data.progress[a.id] || {}).on_team_list ? "" : (stageIdx(a.status) >= 4 && stageIdx(a.status) <= 8
-            ? '<div class="addteam"><span class="small">Add to team list so their portal account is matched with this pay plan:</span><div class="row" style="gap:8px;margin-top:6px"><select data-tplan="' + a.id + '">' + planOptions("scale_100") + '</select><button class="btn sm" style="flex:0 0 auto" data-addteam="' + a.id + '">Add to team list</button></div></div>'
+            ? '<div class="addteam"><span class="small">Add to team list so their portal account is matched with this pay plan:</span><div class="hrow" style="gap:8px;margin-top:6px"><select data-tplan="' + a.id + '">' + planOptions("scale_100") + '</select><button class="btn sm" style="flex:0 0 auto" data-addteam="' + a.id + '">Add to team list</button></div></div>'
             : "")) +
           '<div class="toolbar" style="margin:14px 0 0"><a class="btn ghost sm" href="tel:' + esc(a.phone) + '">Call</a><a class="btn ghost sm" href="sms:' + esc(a.phone) + '">Text</a><a class="btn ghost sm" href="mailto:' + esc(a.email) + '">Email</a></div>' +
         "</div><div>" +
-          '<label style="margin-top:0">Notes & history</label><div class="row" style="gap:8px"><input type="text" data-note="' + a.id + '" placeholder="Add a note (e.g. Left voicemail)"><button class="btn ghost sm" style="flex:0 0 auto" data-addnote="' + a.id + '">Add</button></div>' +
+          '<label style="margin-top:0">Notes & history</label><div class="hrow" style="gap:8px"><input type="text" data-note="' + a.id + '" placeholder="Add a note (e.g. Left voicemail)"><button class="btn ghost sm" style="flex:0 0 auto" data-addnote="' + a.id + '">Add</button></div>' +
           '<div class="timeline" id="tl-' + a.id + '"><p class="tiny">Loading…</p></div>' +
         "</div></div>" +
         '<details class="answers"><summary>Application answers</summary><dl class="kv" style="margin-top:10px"><dt>Email</dt><dd>' + esc(a.email) + "</dd><dt>Phone</dt><dd>" + esc(a.phone) + "</dd><dt>Home ZIP</dt><dd>" + esc(a.zip_code || "—") + "</dd>" +
@@ -187,7 +205,7 @@
     }; });
     L.querySelectorAll("[data-nssave]").forEach(function (b) { b.onclick = function () {
       var id = b.dataset.nssave, t = L.querySelector('[data-nstext="' + id + '"]').value.trim(), w = L.querySelector('[data-nswhen="' + id + '"]').value;
-      upd(id, { next_step: t || null, next_step_at: w ? new Date(w).toISOString() : null });
+      upd(id, { next_step: t || null, next_step_at: fromLocalInput(w) });
     }; });
     L.querySelectorAll("[data-nsclear]").forEach(function (b) { b.onclick = function () { upd(b.dataset.nsclear, { next_step: null, next_step_at: null }); }; });
     L.querySelectorAll("[data-addnote]").forEach(function (b) {
@@ -401,7 +419,7 @@
   async function drawPayroll() {
     var v = $("view");
     v.innerHTML = '<div class="card"><h2>Upload Lime weekly report</h2>' +
-      '<p class="small muted">Choose the "Logistics Provider Weekly Report" PDF from Lime. Everyone in it gets that week added to their Earnings tab. Rent is worked out from each person\'s pay plan, their task count and active referrals. Uploading the same week again updates it; bonuses and manual rent changes are kept.</p>' +
+      '<p class="small muted">Choose the "Logistics Provider Weekly Report" PDF from Lime. Everyone in it gets that week added to their Pay tab. Rent is worked out from each person\'s pay plan, their task count and active referrals. Uploading the same week again updates it; bonuses and manual rent changes are kept.</p>' +
       '<div class="toolbar" style="margin:0"><input type="file" id="limePdf" accept="application/pdf,.pdf" style="max-width:100%"><span class="small muted" id="upMsg"></span></div>' +
       '<div id="mapBox"></div><div class="error" id="upErr"></div></div>' +
       '<div class="card"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Weekly payroll</h2><select id="weekSel" style="width:auto"></select></div><div id="payBox"><p class="muted">Loading…</p></div></div>';
@@ -429,9 +447,9 @@
       rows.map(function (e) {
         var why = e.fee_override ? "Set by hand" : (planLabel(e.plan) + (e.referrals ? " − " + e.referrals + " referral" + (e.referrals > 1 ? "s" : "") : ""));
         return '<tr><td><b>' + esc(personName(e.email)) + '</b></td><td class="small muted">' + esc(e.lime_name) + '</td><td class="num">' + e.tasks + '</td><td class="num">' + money(e.gross) + "</td>" +
-          '<td class="num"><input class="cell" type="number" step="0.01" min="0" data-fee="' + esc(e.lime_name) + '" value="' + Number(e.fee_per_task).toFixed(2) + '"><div class="tiny">' + esc(why) +
+          '<td class="num"><input class="paycell" type="number" step="0.01" min="0" data-fee="' + esc(e.lime_name) + '" value="' + Number(e.fee_per_task).toFixed(2) + '"><div class="tiny">' + esc(why) +
           (e.fee_override ? ' · <button class="link tiny" data-auto="' + esc(e.lime_name) + '">use automatic</button>' : "") + "</div></td>" +
-          '<td class="num">' + money(e.rent_total) + '</td><td class="num"><input class="cell" type="number" step="0.01" data-bonus="' + esc(e.lime_name) + '" value="' + Number(e.bonus).toFixed(2) + '"></td>' +
+          '<td class="num">' + money(e.rent_total) + '</td><td class="num"><input class="paycell" type="number" step="0.01" data-bonus="' + esc(e.lime_name) + '" value="' + Number(e.bonus).toFixed(2) + '"></td>' +
           '<td class="num"><b>' + money(e.actual_pay) + "</b></td></tr>";
       }).join("") +
       '</tbody><tfoot><tr><th>Total (' + rows.length + ' people)</th><th></th><th class="num">' + T.tasks + '</th><th class="num">' + money(T.gross) + '</th><th></th><th class="num">' + money(T.rent) + '</th><th class="num">' + money(T.bonus) + '</th><th class="num">' + money(T.pay) + "</th></tr></tfoot></table></div>" +
