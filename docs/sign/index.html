@@ -115,7 +115,7 @@ const SUPABASE_URL = "https://xzlnzldolzqlhbqfgjeh.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NqaGDUXVR33CekpHZyntFg_f-i5FDGy";
 const TABLE = "waiver_signatures";
 const BUCKET = "waivers";
-const VERSION = "waiver 2026-11-25 / contractor agreement 2026-11-25";
+const VERSION = "waiver 2026-11-25 / contractor agreement 2026-11-26";
 // ==========================================================================================
 
 const WAIVER = [
@@ -188,7 +188,7 @@ const ICA = [
     "Contractor is paid per completed Task. VOS keeps a service fee from each Task, and that fee drops as Contractor's weekly Task count goes up. The rate for the week is set by the total Tasks completed that week and applies to every Task that week."
   ], table: [["Tasks completed in the week", "VOS service fee per Task"], ["Under 200", "$1.00"], ["200 to 399", "$0.80"], ["400 or more", "$0.60"]],
   after: [
-    "Payment schedule. The work week runs Monday to Sunday. VOS pays Contractor every Monday by direct deposit / Zelle / other.",
+    "Payment schedule. The work week runs Monday to Sunday. VOS pays Contractor for each work week by the Wednesday after it ends, by direct deposit / Zelle / other.",
     "Expenses. Contractor pays their own costs of doing the work, including gas, vehicle maintenance, phone, insurance, tolls, parking, tickets and fines. VOS does not reimburse these unless agreed in writing in advance.",
     "No guarantee. VOS does not guarantee any number of Tasks, hours or earnings."
   ]},

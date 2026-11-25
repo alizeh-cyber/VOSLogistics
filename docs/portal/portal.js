@@ -284,7 +284,7 @@
     var r = await sb.rpc("my_earnings");
     if (r.error) { box.innerHTML = '<div class="card warn">Could not load your earnings. Please refresh.</div>'; return; }
     var rows = r.data || [];
-    if (!rows.length) { box.innerHTML = '<div class="card"><h2>Earnings</h2><p class="muted">Your weekly earnings show up here after VOS adds each week\'s report from Lime, usually early the following week.</p></div>'; return; }
+    if (!rows.length) { box.innerHTML = '<div class="card"><h2>Earnings</h2><p class="muted">Your weekly earnings show up here after VOS adds each week\'s report from Lime. Pay for each week goes out by the following Wednesday.</p></div>'; return; }
     var money = function (n) { return "$" + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","); };
     var now = new Date(), ym = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"), y = String(now.getFullYear());
     var sum = function (f) { return rows.filter(f).reduce(function (a, x) { return a + Number(x.actual_pay); }, 0); };
@@ -295,7 +295,7 @@
       '<div class="stat"><div class="k">This year</div><div class="v">' + money(sum(function (x) { return x.week_start.slice(0, 4) === y; })) + "</div></div></div>" +
       '<div class="card"><h2>Weekly earnings</h2><div class="tablewrap"><table><thead><tr><th>Week</th><th class="num">Tasks</th><th class="num">Pay</th></tr></thead><tbody>' +
       rows.map(function (x) { return "<tr><td>" + lbl(x.week_start, x.week_end) + ", " + x.week_end.slice(0, 4) + '</td><td class="num">' + x.tasks + '</td><td class="num"><b>' + money(x.actual_pay) + "</b></td></tr>"; }).join("") +
-      '</tbody></table></div><p class="small muted" style="margin-top:12px">Weeks run Monday to Sunday. Pay is what VOS pays you for the week after its service fee and any bonus. Questions? Text your VOS lead.</p></div>';
+      '</tbody></table></div><p class="small muted" style="margin-top:12px">Weeks run Monday to Sunday, and pay for each week goes out by the following Wednesday. Pay is what VOS pays you for the week after its service fee and any bonus. Questions? Text your VOS lead.</p></div>';
   }
 
   function render() {
