@@ -230,14 +230,14 @@
     base = startMon > thisMon ? startMon : thisMon;
     if (startMon > thisMon) day = 0;
 
-    var TABS = [["schedule", "Schedule", "Schedule"], ["mine", "My shifts", "Shifts"], ["earnings", "Earnings", "Pay"], ["refer", "Refer a friend", "Refer"], ["account", "My account", "Account"]];
+    var TABS = [["schedule", "Battery Schedule", "Battery"], ["mine", "My shifts", "Shifts"], ["earnings", "Earnings", "Pay"], ["refer", "Refer a friend", "Refer"], ["account", "My account", "Account"]];
     app.innerHTML =
       '<div class="eyebrow">Welcome back</div><h1>' + esc(me.full_name) + "</h1>" +
       '<nav class="navtabs" id="navtabs" role="tablist">' + TABS.map(function (t) {
         return '<button role="tab" data-pane="' + t[0] + '"><span class="full">' + t[1] + '</span><span class="short">' + t[2] + "</span>" + (t[0] === "mine" ? ' <span class="pill" id="mineCount">0</span>' : "") + "</button>";
       }).join("") + "</nav>" +
       '<div id="msg" class="error" hidden></div>' +
-      '<section class="pane" data-pane="schedule"><div class="card"><h2>Shift schedule</h2>' +
+      '<section class="pane" data-pane="schedule"><div class="card"><h2>Battery Schedule</h2>' +
       '<p class="muted small" id="headline"></p>' +
       '<p class="small muted">Each shift is 4 hours. Advanced spots are 40 swaps. <span class="tag">BEGINNER · 25</span> spots (orange) are 25 swaps. Bring your batteries back by the time shown.</p>' +
       '<div class="tabs" id="weeks"></div><div class="tabs" id="tabs"></div><div id="slots"></div>' +
