@@ -7,7 +7,13 @@
   var session = null, tab = "apps";
   var DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  var APP_STATUS = { new: ["New", "blue"], contacted: ["Contacted", "amber"], hired: ["Hired", "green"], not_a_fit: ["Not a fit", "red"] };
+  // Hiring stages, in order. Closed stages come last.
+  var STAGES = [
+    ["new", "New", "blue"], ["contacted", "Contacted", "amber"], ["interview_scheduled", "Interview scheduled", "amber"], ["interviewed", "Interviewed", "amber"],
+    ["hired", "Hired", "green"], ["onboarding", "Onboarding", "green"], ["training_scheduled", "Training scheduled", "green"], ["trained", "Trained", "green"], ["active", "Active", "green"],
+    ["no_response", "No response", "red"], ["not_a_fit", "Not a fit", "red"], ["withdrew", "Withdrew", "red"]];
+  var OPEN_STAGES = ["new", "contacted", "interview_scheduled", "interviewed", "hired", "onboarding", "training_scheduled", "trained"];
+  var APP_STATUS = {}; STAGES.forEach(function (x) { APP_STATUS[x[0]] = [x[1], x[2]]; });
   var ASSOC_STATUS = { pending: ["Waiting for approval", "amber"], approved: ["Approved", "green"], declined: ["Declined", "red"] };
   var data = { apps: [], assoc: [], waivers: [], types: [], settings: null, sched: [], plans: [], invites: [] };
   var schedWeek = 0;
@@ -83,7 +89,7 @@
   function draw() {
     var pending = data.assoc.filter(function (a) { return a.status === "pending"; }).length;
     var newApps = data.apps.filter(function (a) { return a.status === "new"; }).length;
-    var tabs = [["apps", "Job applications", newApps], ["roster", "Associates", pending], ["team", "Team list", 0], ["payroll", "Payroll", 0], ["referrals", "Referrals", 0], ["schedule", "Schedule", 0], ["waivers", "Waivers", 0], ["settings", "Shift settings", 0]];
+    var tabs = [["apps", "Hiring", newApps], ["roster", "Associates", pending], ["team", "Team list", 0], ["payroll", "Payroll", 0], ["referrals", "Referrals", 0], ["schedule", "Schedule", 0], ["waivers", "Waivers", 0], ["settings", "Shift settings", 0]];
     $("mainTabs").innerHTML = tabs.map(function (t) {
       return '<button class="tab' + (tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '">' + t[1] + (t[2] ? '<span class="count">' + t[2] + "</span>" : "") + "</button>";
     }).join("");
@@ -91,50 +97,126 @@
     ({ apps: drawApps, roster: drawRoster, team: drawTeam, payroll: drawPayroll, referrals: drawReferrals, schedule: drawSchedule, waivers: drawWaivers, settings: drawSettings })[tab]();
   }
 
-  // ---------- Job applications ----------
-  var appQ = "", appF = "";
-  function drawApps() {
+  // ---------- Hiring pipeline (job applications) ----------
+  var appQ = "", appF = "open", appOpen = {};
+  async function drawApps() {
     var v = $("view");
-    v.innerHTML = '<div class="toolbar"><input type="search" id="aq" placeholder="Search name, phone, email, ZIP…" value="' + esc(appQ) + '">' +
-      '<select id="af"><option value="">All statuses</option>' + Object.keys(APP_STATUS).map(function (k) { return '<option value="' + k + '"' + (appF === k ? " selected" : "") + ">" + APP_STATUS[k][0] + "</option>"; }).join("") + "</select>" +
-      '<span class="muted small" id="acount"></span></div><div id="alist"></div>';
+    var pr = await sb.rpc("admin_applicant_progress");
+    data.progress = {}; (pr.data || []).forEach(function (x) { data.progress[x.application_id] = x; });
+    var now = Date.now();
+    var cnt = function (f) { return data.apps.filter(f).length; };
+    var due = cnt(function (a) { return OPEN_STAGES.indexOf(a.status) >= 0 && a.next_step_at && new Date(a.next_step_at).getTime() < now + 864e5; });
+    var chips = [["open", "All open", cnt(function (a) { return OPEN_STAGES.indexOf(a.status) >= 0; })], ["due", "Needs follow-up", due]]
+      .concat(STAGES.map(function (st) { return [st[0], st[1], cnt(function (a) { return a.status === st[0]; })]; }))
+      .concat([["all", "Everyone", data.apps.length]]);
+    v.innerHTML = '<div class="pipe">' + chips.map(function (c) {
+        if (!c[2] && ["open", "all", "new"].indexOf(c[0]) < 0 && c[0] !== appF) return "";
+        return '<button class="pstage' + (appF === c[0] ? " on" : "") + (c[0] === "due" && c[2] ? " warn" : "") + '" data-f="' + c[0] + '">' + esc(c[1]) + " <b>" + c[2] + "</b></button>";
+      }).join("") + "</div>" +
+      '<div class="toolbar"><input type="search" id="aq" placeholder="Search name, phone, email, ZIP…" value="' + esc(appQ) + '"><span class="muted small" id="acount"></span></div><div id="alist"></div>';
+    v.querySelectorAll(".pstage").forEach(function (b) { b.onclick = function () { appF = b.dataset.f; drawApps(); }; });
     $("aq").oninput = function () { appQ = this.value; listApps(); };
-    $("af").onchange = function () { appF = this.value; listApps(); };
     listApps();
   }
+  function stageIdx(st) { for (var i = 0; i < STAGES.length; i++) if (STAGES[i][0] === st) return i; return -1; }
+  function fmtWhen(s) { return s ? new Date(s).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""; }
+  function localInput(s) { if (!s) return ""; var d = new Date(s); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); }
+  function checklist(a) {
+    var p = data.progress[a.id] || {};
+    var item = function (ok, label) { return '<span class="ck' + (ok ? " ok" : "") + '">' + (ok ? "✓" : "○") + " " + label + "</span>"; };
+    return '<div class="checks">' + item(p.on_team_list, "Team list") + item(p.has_account, "Portal account") + item(p.agreement_signed, "Agreement signed") +
+      item(p.shifts_booked > 0, "Shift booked" + (p.shifts_booked ? " (" + p.shifts_booked + ")" : "")) + item(p.tasks_done > 0, "Tasks done" + (p.tasks_done ? " (" + p.tasks_done + ")" : "")) + "</div>";
+  }
   function listApps() {
-    var q = appQ.trim().toLowerCase();
+    var q = appQ.trim().toLowerCase(), now = Date.now();
     var rows = data.apps.filter(function (a) {
-      if (appF && a.status !== appF) return false;
+      if (appF === "open" && OPEN_STAGES.indexOf(a.status) < 0) return false;
+      if (appF === "due" && !(OPEN_STAGES.indexOf(a.status) >= 0 && a.next_step_at && new Date(a.next_step_at).getTime() < now + 864e5)) return false;
+      if (["open", "due", "all"].indexOf(appF) < 0 && a.status !== appF) return false;
       if (!q) return true;
-      return [a.full_name, a.phone, a.email, a.zip_code, a.vehicle_type, a.heard_from, a.notes].join(" ").toLowerCase().indexOf(q) >= 0;
+      return [a.full_name, a.phone, a.email, a.zip_code, a.vehicle_type, a.heard_from, a.notes, a.next_step].join(" ").toLowerCase().indexOf(q) >= 0;
+    }).sort(function (x, y) {
+      var dx = x.next_step_at ? new Date(x.next_step_at).getTime() : Infinity, dy = y.next_step_at ? new Date(y.next_step_at).getTime() : Infinity;
+      return dx - dy || new Date(y.applied_at) - new Date(x.applied_at);
     });
-    $("acount").textContent = rows.length + " of " + data.apps.length;
-    if (!rows.length) { $("alist").innerHTML = '<div class="card muted">' + (data.apps.length ? "No applications match." : "No applications yet.") + "</div>"; return; }
+    $("acount").textContent = rows.length + " shown";
+    if (!rows.length) { $("alist").innerHTML = '<div class="card muted">' + (data.apps.length ? "Nobody here." : "No applications yet.") + "</div>"; return; }
     $("alist").innerHTML = rows.map(function (a) {
-      return '<details class="app"><summary><span><b>' + esc(a.full_name) + '</b> <span class="muted small">· ' + esc(a.phone) + " · applied " + fmtDate(a.applied_at) + "</span></span>" + badge(APP_STATUS, a.status) + "</summary>" +
-        '<div class="appbody"><div class="toolbar"><label style="margin:0">Status</label><select data-id="' + a.id + '">' +
-        Object.keys(APP_STATUS).map(function (k) { return '<option value="' + k + '"' + (a.status === k ? " selected" : "") + ">" + APP_STATUS[k][0] + "</option>"; }).join("") +
-        '</select><a class="btn ghost sm" href="tel:' + esc(a.phone) + '">Call</a><a class="btn ghost sm" href="sms:' + esc(a.phone) + '">Text</a><a class="btn ghost sm" href="mailto:' + esc(a.email) + '">Email</a></div>' +
-        '<dl class="kv"><dt>Email</dt><dd>' + esc(a.email) + "</dd><dt>Phone</dt><dd>" + esc(a.phone) + "</dd><dt>Home ZIP</dt><dd>" + esc(a.zip_code || "—") + "</dd>" +
+      var overdue = a.next_step_at && new Date(a.next_step_at).getTime() < now && OPEN_STAGES.indexOf(a.status) >= 0;
+      var nxt = a.next_step || a.next_step_at ? '<span class="nextstep' + (overdue ? " late" : "") + '">' + (overdue ? "Overdue: " : "Next: ") + esc(a.next_step || "Follow up") + (a.next_step_at ? " · " + esc(fmtWhen(a.next_step_at)) : "") + "</span>" : "";
+      return '<details class="app" data-id="' + a.id + '"' + (appOpen[a.id] ? " open" : "") + '><summary><span class="who2"><b>' + esc(a.full_name) + '</b> <span class="muted small">· ' + esc(a.phone) + " · applied " + fmtDate(a.applied_at) + "</span>" + (nxt ? "<br>" + nxt : "") + "</span>" + badge(APP_STATUS, a.status) + "</summary>" +
+        '<div class="appbody"><div class="stagebar">' + STAGES.slice(0, 9).map(function (st, i) { var cur = stageIdx(a.status); return '<span class="sb' + (i < cur && cur < 9 ? " done" : "") + (i === cur ? " cur" : "") + '" title="' + st[1] + '"></span>'; }).join("") + "</div>" +
+        '<div class="grid2" style="margin-top:12px"><div>' +
+          '<label style="margin-top:0">Stage</label><div class="row" style="gap:8px;align-items:center"><select data-stage="' + a.id + '">' + STAGES.map(function (st) { return '<option value="' + st[0] + '"' + (a.status === st[0] ? " selected" : "") + ">" + st[1] + "</option>"; }).join("") + "</select>" +
+          (stageIdx(a.status) < 8 ? '<button class="btn sm" style="flex:0 0 auto" data-advance="' + a.id + '">Next stage →</button>' : "") + "</div>" +
+          '<label>Next step</label><input type="text" data-nstext="' + a.id + '" placeholder="e.g. Interview call, Training at warehouse" value="' + esc(a.next_step || "") + '">' +
+          '<div class="row" style="gap:8px;margin-top:8px;align-items:center"><input type="datetime-local" data-nswhen="' + a.id + '" value="' + localInput(a.next_step_at) + '"><button class="btn ghost sm" style="flex:0 0 auto" data-nssave="' + a.id + '">Save</button><button class="link small" style="flex:0 0 auto" data-nsclear="' + a.id + '">Clear</button></div>' +
+          '<label>Onboarding</label>' + checklist(a) +
+          ((data.progress[a.id] || {}).on_team_list ? "" : (stageIdx(a.status) >= 4 && stageIdx(a.status) <= 8
+            ? '<div class="addteam"><span class="small">Add to team list so their portal account is matched with this pay plan:</span><div class="row" style="gap:8px;margin-top:6px"><select data-tplan="' + a.id + '">' + planOptions("scale_100") + '</select><button class="btn sm" style="flex:0 0 auto" data-addteam="' + a.id + '">Add to team list</button></div></div>'
+            : "")) +
+          '<div class="toolbar" style="margin:14px 0 0"><a class="btn ghost sm" href="tel:' + esc(a.phone) + '">Call</a><a class="btn ghost sm" href="sms:' + esc(a.phone) + '">Text</a><a class="btn ghost sm" href="mailto:' + esc(a.email) + '">Email</a></div>' +
+        "</div><div>" +
+          '<label style="margin-top:0">Notes & history</label><div class="row" style="gap:8px"><input type="text" data-note="' + a.id + '" placeholder="Add a note (e.g. Left voicemail)"><button class="btn ghost sm" style="flex:0 0 auto" data-addnote="' + a.id + '">Add</button></div>' +
+          '<div class="timeline" id="tl-' + a.id + '"><p class="tiny">Loading…</p></div>' +
+        "</div></div>" +
+        '<details class="answers"><summary>Application answers</summary><dl class="kv" style="margin-top:10px"><dt>Email</dt><dd>' + esc(a.email) + "</dd><dt>Phone</dt><dd>" + esc(a.phone) + "</dd><dt>Home ZIP</dt><dd>" + esc(a.zip_code || "—") + "</dd>" +
         "<dt>Hours per week</dt><dd>" + esc(a.hours_per_week || a.max_hours || "—") + "</dd><dt>Days</dt><dd>" + esc(list(a.days_available)) + "</dd>" +
         "<dt>Times</dt><dd>" + esc(list(a.preferred_times)) + "</dd><dt>Earliest start</dt><dd>" + esc(a.start_date || "—") + "</dd>" +
         "<dt>Vehicle</dt><dd>" + esc(a.vehicle_type || yn(a.has_vehicle)) + "</dd><dt>License + insurance</dt><dd>" + yn(a.has_license_insurance) + "</dd>" +
         "<dt>Can lift 50+ lbs</dt><dd>" + yn(a.can_lift_50) + "</dd><dt>18 or older</dt><dd>" + yn(a.is_18_plus) + "</dd>" +
         "<dt>Heard about us</dt><dd>" + esc(a.heard_from || "—") + "</dd><dt>Anything else</dt><dd>" + esc(a.notes || "—") + "</dd>" +
-        "<dt>Applied</dt><dd>" + esc(fmtDateTime(a.applied_at)) + "</dd></dl></div></details>";
+        "<dt>Applied</dt><dd>" + esc(fmtDateTime(a.applied_at)) + "</dd></dl></details></div></details>";
     }).join("");
-    $("alist").querySelectorAll("select[data-id]").forEach(function (s) {
-      s.onchange = async function () {
-        var id = s.dataset.id, st = s.value;
-        var r = await sb.from("job_applications").update({ status: st, status_changed_at: new Date().toISOString() }).eq("id", id).select().single();
-        if (r.error) { alert("Could not save the status."); return; }
-        data.apps = data.apps.map(function (a) { return a.id === id ? r.data : a; });
-        var open = s.closest("details"); listApps();
-        var again = $("alist").querySelector('select[data-id="' + id + '"]'); if (again && open) again.closest("details").open = true;
-        refreshTabCounts();
-      };
+    var L = $("alist");
+    L.querySelectorAll("details.app").forEach(function (d) {
+      if (d.open) loadTimeline(d.dataset.id);
+      d.addEventListener("toggle", function () { appOpen[d.dataset.id] = d.open; if (d.open) loadTimeline(d.dataset.id); });
     });
+    async function upd(id, fields) {
+      var r = await sb.from("job_applications").update(fields).eq("id", id).select().single();
+      if (r.error) { alert("Could not save: " + r.error.message); return null; }
+      data.apps = data.apps.map(function (a) { return a.id === id ? r.data : a; });
+      appOpen[id] = true; refreshTabCounts(); drawApps(); return r.data;
+    }
+    L.querySelectorAll("select[data-stage]").forEach(function (sel) { sel.onchange = function () { upd(sel.dataset.stage, { status: sel.value, status_changed_at: new Date().toISOString() }); }; });
+    L.querySelectorAll("[data-advance]").forEach(function (b) { b.onclick = function () {
+      var a = data.apps.filter(function (x) { return x.id === b.dataset.advance; })[0], i = stageIdx(a.status);
+      var nextSt = i >= 9 ? "contacted" : STAGES[Math.min(i + 1, 8)][0];
+      upd(a.id, { status: nextSt, status_changed_at: new Date().toISOString() });
+    }; });
+    L.querySelectorAll("[data-nssave]").forEach(function (b) { b.onclick = function () {
+      var id = b.dataset.nssave, t = L.querySelector('[data-nstext="' + id + '"]').value.trim(), w = L.querySelector('[data-nswhen="' + id + '"]').value;
+      upd(id, { next_step: t || null, next_step_at: w ? new Date(w).toISOString() : null });
+    }; });
+    L.querySelectorAll("[data-nsclear]").forEach(function (b) { b.onclick = function () { upd(b.dataset.nsclear, { next_step: null, next_step_at: null }); }; });
+    L.querySelectorAll("[data-addnote]").forEach(function (b) {
+      var inp = L.querySelector('[data-note="' + b.dataset.addnote + '"]');
+      var go = async function () {
+        var t = inp.value.trim(); if (!t) return;
+        var r = await sb.from("application_events").insert({ application_id: b.dataset.addnote, kind: "note", note: t });
+        if (r.error) { alert("Could not add the note."); return; }
+        inp.value = ""; loadTimeline(b.dataset.addnote);
+      };
+      b.onclick = go; inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); go(); } };
+    });
+    L.querySelectorAll("[data-addteam]").forEach(function (b) { b.onclick = async function () {
+      var a = data.apps.filter(function (x) { return x.id === b.dataset.addteam; })[0];
+      var plan = L.querySelector('[data-tplan="' + a.id + '"]').value;
+      var r = await sb.from("roster_invites").insert({ email: a.email.trim().toLowerCase(), full_name: a.full_name, phone: a.phone || "", pay_plan: plan });
+      if (r.error) { alert(r.error.code === "23505" ? "That email is already on the team list." : "Could not add: " + r.error.message); return; }
+      await sb.from("application_events").insert({ application_id: a.id, kind: "note", note: "Added to team list (" + planLabel(plan) + ")" });
+      await loadAll(); appOpen[a.id] = true; drawApps();
+    }; });
+  }
+  async function loadTimeline(id) {
+    var box = $("tl-" + id); if (!box) return;
+    var r = await sb.from("application_events").select("*").eq("application_id", id).order("at", { ascending: false });
+    var ev = r.data || [];
+    box.innerHTML = ev.length ? ev.map(function (e) {
+      var what = e.kind === "applied" ? "Applied on the job page" : e.kind === "stage" ? "Stage → <b>" + esc((APP_STATUS[e.stage] || [e.stage])[0]) + "</b>" : e.kind === "next_step" ? "Next step: " + esc(e.note) : esc(e.note);
+      return '<div class="ev ' + e.kind + '"><div class="evt">' + what + '</div><div class="tiny">' + esc(fmtDateTime(e.at)) + (e.by_name ? " · " + esc(e.by_name) : "") + "</div></div>";
+    }).join("") : '<p class="tiny">No history yet.</p>';
   }
   function refreshTabCounts() {
     var pending = data.assoc.filter(function (a) { return a.status === "pending"; }).length;

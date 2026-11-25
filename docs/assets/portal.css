@@ -189,3 +189,26 @@ table.schedgrid .past { opacity:.55; }
 .sppl { flex:1; min-width:0; }
 .sppl .pchip { display:inline-flex; margin:0 4px 4px 0; max-width:100%; }
 @media (max-width:640px) { .topbar .who b { display:none; } }
+
+/* Hiring pipeline */
+.pipe { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.pstage { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 12px; font:inherit; font-size:13px; cursor:pointer; color:var(--ink); }
+.pstage b { margin-left:4px; color:var(--muted); font-weight:700; }
+.pstage.on { background:var(--accent); border-color:var(--accent); color:#fff; } .pstage.on b { color:#fff; }
+.pstage.warn:not(.on) { border-color:var(--warn-line); background:var(--warn-bg); }
+.who2 { line-height:1.35; }
+.nextstep { display:inline-block; margin-top:4px; font-size:12.5px; color:var(--accent); font-weight:500; }
+.nextstep.late { color:var(--err); font-weight:600; }
+.stagebar { display:flex; gap:3px; }
+.stagebar .sb { flex:1; height:6px; border-radius:3px; background:var(--line); }
+.stagebar .sb.done { background:#9cc58a; } .stagebar .sb.cur { background:var(--accent); }
+.checks { display:flex; flex-wrap:wrap; gap:6px; }
+.ck { font-size:12.5px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); color:var(--muted); background:#fff; }
+.ck.ok { color:var(--accent); background:var(--accent-soft); border-color:#cfe0c4; font-weight:600; }
+.addteam { margin-top:10px; padding:10px; border:1px dashed #cfe0c4; border-radius:8px; background:#fbfdf9; }
+.timeline { margin-top:10px; max-height:320px; overflow-y:auto; border-left:2px solid var(--line); padding-left:12px; }
+.ev { position:relative; padding:4px 0 10px; font-size:13.5px; }
+.ev::before { content:""; position:absolute; left:-17px; top:9px; width:8px; height:8px; border-radius:50%; background:#cfd4da; }
+.ev.stage::before { background:var(--accent); } .ev.note::before { background:#1d4f91; } .ev.next_step::before { background:var(--tr); }
+details.answers { margin-top:14px; border-top:1px solid var(--line); padding-top:10px; }
+details.answers > summary { cursor:pointer; font-size:14px; font-weight:600; color:var(--accent); }
