@@ -119,6 +119,12 @@
         : '<div class="card"><h1>Profile not found</h1><p>Please contact your VOS lead.</p></div>';
       return;
     }
+    if (isAdmin && me.status !== "approved") {
+      app.innerHTML = '<div class="card ok"><div class="eyebrow">Admin account</div><h1>Hi ' + esc(me.full_name.split(" ")[0]) + "</h1>" +
+        "<p>This login is set up as an admin. Payroll, referrals, associates, the schedule and job applications are all in the admin dashboard.</p>" +
+        '<a class="btn" href="../admin/">Open admin dashboard</a></div>';
+      return;
+    }
     if (me.status === "declined") {
       app.innerHTML = '<div class="card warn"><h1>Account not approved</h1><p>Your account wasn\'t approved for the schedule. If you think this is a mistake, contact your VOS lead.</p></div>';
       return;
