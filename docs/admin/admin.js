@@ -528,7 +528,14 @@
     return l;
   }
   function shortName(n) { var p = String(n || "").trim().split(/\s+/); return p.length > 1 ? p[0] + " " + p[p.length - 1][0] + "." : p[0]; }
-  window.addEventListener("resize", function () { if (tab === "schedule" && $("wg") && (window.innerWidth < 760) !== !!$("wg").dataset.mobile) drawSchedule(); });
+  var schedLayout = null, schedResizeT = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(schedResizeT);
+    schedResizeT = setTimeout(function () {
+      var want = window.innerWidth < 760;
+      if (tab === "schedule" && schedLayout !== null && want !== schedLayout) drawSchedule();
+    }, 300);
+  });
   async function drawSchedule() {
     var v = $("view");
     var startMon = mondayOf(parseDate(data.settings.schedule_start)), thisMon = mondayOf(new Date());
@@ -584,11 +591,10 @@
       }).join("") + "</tr>";
     }).join("");
     var mobile = window.innerWidth < 760;
+    schedLayout = mobile;
     if (!mobile) {
       $("wg").innerHTML = '<table class="schedgrid"><thead>' + head + "</thead><tbody>" + body + "</tbody></table>";
-      delete $("wg").dataset.mobile;
     } else {
-      $("wg").dataset.mobile = "1";
       $("wg").innerHTML = days.map(function (d, i) {
         var di = iso(d), n = Object.keys(by).filter(function (k) { return k.slice(0, 10) === di; }).length;
         return '<div class="sday' + (di === todayIso ? " today" : "") + (di < todayIso ? " past" : "") + '"><div class="sdayhead"><b>' + DAYS[i] + " " + MON[d.getMonth()] + " " + d.getDate() + "</b>" +
