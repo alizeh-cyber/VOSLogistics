@@ -423,10 +423,11 @@
   // ---------- Referrals ----------
   async function drawReferrals() {
     var v = $("view");
-    v.innerHTML = '<div class="card"><h2>Add a referral</h2><p class="small muted">Add it as soon as someone is referred. The discount starts automatically the Monday after the referred person reaches <b>200 tasks</b> (counted from the Lime reports you upload), then lasts 3 months: $0.05 off per task for the referrer. Referrals add up.</p>' +
+    v.innerHTML = '<div class="card"><h2>Add a referral</h2><p class="small muted">Add it as soon as someone is referred. The discount starts automatically the Monday after <b>both</b> the referrer and the referred person have reached <b>200 tasks</b> (counted from the Lime reports you upload), then lasts 3 months: $0.05 off per task for the referrer. Referrals add up.</p>' +
       '<form id="refForm" novalidate><div class="row"><div><label for="refBy">Who referred</label><select id="refBy"></select></div>' +
       '<div><label for="refWho">Who they referred</label><select id="refWho"></select></div></div>' +
       '<p class="small muted" style="margin:8px 0 0">New person not in the list yet? Add them in <b>Team list</b> first.</p>' +
+      '<div id="refByInfo" class="small" style="margin-top:10px"></div>' +
       '<label style="display:flex;gap:10px;align-items:flex-start;font-weight:400;margin-top:14px"><input type="checkbox" id="refPast" style="margin-top:4px"><span>They already passed 200 tasks before payroll was on this site. Start the discount on a set date instead.</span></label>' +
       '<div id="refDateBox" class="hidden" style="max-width:220px"><label for="refDate">Discount starts</label><input type="date" id="refDate"></div>' +
       '<button class="btn" style="margin-top:16px">Add referral</button><div class="error" id="refErr"></div></form></div>' +
@@ -436,6 +437,16 @@
     $("refWho").innerHTML = peopleOptions("", "Choose a person…");
     $("refDate").value = iso(new Date());
     $("refPast").onchange = function () { $("refDateBox").classList.toggle("hidden", !this.checked); };
+    $("refBy").onchange = async function () {
+      var box = $("refByInfo"); box.innerHTML = "";
+      if (!this.value) return;
+      var t = await sb.rpc("admin_person_tasks", { p_email: this.value }); var x = (t.data && t.data[0]) || { payroll_tasks: 0, prior_tasks: 0 };
+      var total = x.payroll_tasks + x.prior_tasks;
+      box.innerHTML = total >= 200
+        ? '<span class="badge green">' + esc(personName(this.value)) + " has 200+ tasks on record</span>"
+        : '<span class="badge amber">' + esc(personName(this.value)) + " has " + total + " / 200 tasks on record</span>" +
+          '<label style="display:flex;gap:10px;align-items:flex-start;font-weight:400;margin-top:8px"><input type="checkbox" id="refPrior" style="margin-top:4px"><span>They had already done 200+ tasks before payroll was on this site</span></label>';
+    };
     $("refForm").onsubmit = async function (e) {
       e.preventDefault();
       var err = $("refErr"); err.className = "error"; err.textContent = "";
@@ -445,14 +456,18 @@
       if (by === who) { err.textContent = "Someone can't refer themselves."; return; }
       if (past && !$("refDate").value) { err.textContent = "Choose the start date."; return; }
       var row = { referrer_email: by, referred_email: who, referred_name: personName(who), mode: past ? "manual" : "tasks", starts_on: past ? $("refDate").value : null, ends_on: null };
+      if ($("refPrior") && $("refPrior").checked) {
+        var bl = await sb.from("person_baselines").upsert({ email: by, prior_tasks: 200, updated_at: new Date().toISOString() });
+        if (bl.error) { err.textContent = "Could not save: " + bl.error.message; return; }
+      }
       var r = await sb.from("referrals").insert(row).select().single();
       if (r.error) { err.textContent = "Could not add: " + r.error.message; return; }
       if (past) await recalcWeeksBetween(r.data.starts_on, r.data.ends_on);
       else await sb.rpc("referrals_refresh");
       err.className = "notice";
       err.textContent = past ? "Added. " + personName(by) + "'s discount runs until " + fmtDate(r.data.ends_on + "T12:00:00") + "."
-        : "Added. " + personName(by) + "'s discount starts automatically once " + personName(who) + " reaches 200 tasks.";
-      $("refWho").value = ""; $("refPast").checked = false; $("refDateBox").classList.add("hidden");
+        : "Added. " + personName(by) + "'s discount starts automatically once both of them have reached 200 tasks.";
+      $("refWho").value = ""; $("refByInfo").innerHTML = ""; $("refPast").checked = false; $("refDateBox").classList.add("hidden");
       await loadPeople(); listReferrals();
     };
     listReferrals();
@@ -471,8 +486,11 @@
       (refs.length ? "<table><thead><tr><th>Referrer</th><th>Referred</th><th>Status</th><th>Starts</th><th>Ends</th><th></th></tr></thead><tbody>" + refs.map(function (x) {
         var status;
         if (!x.starts_on) {
-          var t = x.referred_tasks || 0;
-          status = '<span class="badge amber">Waiting · ' + t + " / 200 tasks</span>";
+          var t = x.referred_tasks || 0, rt = x.referrer_tasks || 0, parts = [];
+          if (t < 200) parts.push(esc(personName(x.referred_email)) + ": " + t + " / 200");
+          if (rt < 200) parts.push(esc(personName(x.referrer_email)) + " (referrer): " + rt + " / 200");
+          status = '<span class="badge amber">Waiting</span><div class="tiny">' + parts.join("<br>") + "</div>" +
+            (rt < 200 ? '<button class="link tiny" data-prior="' + esc(x.referrer_email) + '">Referrer already had 200+ before payroll</button>' : "");
         } else if (x.starts_on > today) status = '<span class="badge blue">Starts ' + fmtDate(x.starts_on + "T12:00:00") + "</span>";
         else if (x.ends_on > today) status = '<span class="badge green">Active</span>';
         else status = '<span class="badge">Ended</span>';
@@ -480,6 +498,14 @@
           (x.mode === "manual" ? '<div class="tiny">Start date set by hand</div>' : "") + "</td><td>" + (x.starts_on ? fmtDate(x.starts_on + "T12:00:00") : "—") + "</td><td>" + (x.ends_on ? fmtDate(x.ends_on + "T12:00:00") : "—") +
           '</td><td><button class="btn danger sm" data-delref="' + x.id + '" data-a="' + (x.starts_on || "") + '" data-b="' + (x.ends_on || "") + '">Delete</button></td></tr>';
       }).join("") + "</tbody></table>" : '<p class="muted">No referrals yet.</p>');
+    $("refList").querySelectorAll("[data-prior]").forEach(function (b) {
+      b.onclick = async function () {
+        if (!confirm(personName(b.dataset.prior) + " had already done 200+ tasks before payroll was on this site?")) return;
+        var x = await sb.from("person_baselines").upsert({ email: b.dataset.prior, prior_tasks: 200, updated_at: new Date().toISOString() });
+        if (x.error) { alert("Could not save."); return; }
+        await sb.rpc("referrals_refresh"); await loadPeople(); listReferrals();
+      };
+    });
     $("refList").querySelectorAll("[data-delref]").forEach(function (b) {
       b.onclick = async function () {
         if (!confirm("Delete this referral? If its discount already applied, the referrer's rent goes back up for those weeks.")) return;
