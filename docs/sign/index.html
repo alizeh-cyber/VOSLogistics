@@ -61,8 +61,6 @@
       <label for="fullName">Full legal name</label>
       <input type="text" id="fullName" autocomplete="name" required>
 
-      <label for="bizName">Business name (optional)</label>
-      <input type="text" id="bizName" autocomplete="organization">
 
       <label for="idNumber">Driver's license or state ID number</label>
       <input type="text" id="idNumber" autocomplete="off" required>
@@ -217,7 +215,7 @@ const DOCS = [
 // ---------- Render documents ----------
 const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const para = x => typeof x === "string" ? `<p>${esc(x)}</p>` : `<p class="caps">${esc(x.t)}</p>`;
-const fieldsHtml = `<p>Contractor: the person signing below<br>Business name: as entered below (if any)<br>Start date: the date signed below</p>`;
+const fieldsHtml = `<p>Contractor: the person signing below<br>Start date: the date signed below</p>`;
 const tableHtml = t => `<table>${t.map((r, i) => `<tr>${r.map(c => i ? `<td>${esc(c)}</td>` : `<th>${esc(c)}</th>`).join("")}</tr>`).join("")}</table>`;
 const partHtml = x => x && x.fields ? fieldsHtml : para(x);
 // Section 3 (Pay) shows only the signer's own pay plan, plus the referral discount.
@@ -290,7 +288,6 @@ function buildPdf(d) {
       const out = x => {
         if (x && x.fields) {
           text("Contractor: " + d.full_name, 9.5, "bold");
-          text("Business name: " + (d.business_name || "None"), 9.5, "bold");
           text("Start date: " + d.signed_date, 9.5, "bold"); y += 3; return;
         }
         typeof x === "string" ? text(x, 9.5) : text(x.t, 9.5, "bold"); y += 3;
@@ -317,7 +314,6 @@ function buildPdf(d) {
   doc.setTextColor(90, 158, 27); text("Signature", 11.5, "bold"); doc.setTextColor(31, 42, 26);
   const field = (k, v) => { doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text(k, M, y); doc.setFont("helvetica", "normal"); doc.text(v, M + 150, y); y += 16; };
   field("Full legal name:", d.full_name);
-  field("Business name:", d.business_name || "None");
   field("Driver's license / ID #:", d.id_number);
   field("Phone:", d.phone);
   field("Email:", d.email);
@@ -381,7 +377,6 @@ $("waiverForm").addEventListener("submit", async e => {
     initials_section3: v("init3").toUpperCase(), initials_section4: v("init4").toUpperCase()
   };
   if (Object.values(d).some(x => !x)) return errBox.textContent = "Please fill in every required field.";
-  d.business_name = v("bizName");
   if (!/^\S+@\S+\.\S+$/.test(d.email)) return errBox.textContent = "Please enter a valid email.";
   if (!hasInk) return errBox.textContent = "Please sign in the signature box.";
   if (!$("agree").checked) return errBox.textContent = "Please check the box to agree.";
@@ -404,7 +399,7 @@ $("waiverForm").addEventListener("submit", async e => {
     if (up.error) throw up.error;
 
     const ins = await supa.from(TABLE).insert({
-      id: d.submission_id, full_name: d.full_name, business_name: d.business_name || null, id_number: d.id_number, phone: d.phone, email: d.email,
+      id: d.submission_id, full_name: d.full_name, business_name: null, id_number: d.id_number, phone: d.phone, email: d.email,
       initials_section3: d.initials_section3, initials_section4: d.initials_section4,
       waiver_version: VERSION, pdf_path: path, user_agent: navigator.userAgent,
       user_id: currentUser.id

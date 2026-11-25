@@ -342,10 +342,10 @@
     var rows = data.waivers.filter(function (w) { return !q || [w.full_name, w.phone, w.email, w.business_name].join(" ").toLowerCase().indexOf(q) >= 0; });
     $("wcount").textContent = rows.length + " of " + data.waivers.length;
     if (!rows.length) { $("wt").innerHTML = '<p class="muted">No waivers found.</p>'; return; }
-    $("wt").innerHTML = "<table><thead><tr><th>Signed</th><th>Name</th><th>Business</th><th>Phone</th><th>Email</th><th>Version</th><th>Portal account</th><th></th></tr></thead><tbody>" +
+    $("wt").innerHTML = "<table><thead><tr><th>Signed</th><th>Name</th><th>Phone</th><th>Email</th><th>Version</th><th>Portal account</th><th></th></tr></thead><tbody>" +
       rows.map(function (w) {
         var a = w.user_id ? data.assoc.filter(function (x) { return x.user_id === w.user_id; })[0] : null;
-        return "<tr><td>" + esc(fmtDateTime(w.signed_at)) + "</td><td><b>" + esc(w.full_name) + "</b></td><td>" + esc(w.business_name || "—") + "</td><td>" + esc(w.phone) + "</td><td>" + esc(w.email) + "</td>" +
+        return "<tr><td>" + esc(fmtDateTime(w.signed_at)) + "</td><td><b>" + esc(w.full_name) + "</b></td><td>" + esc(w.phone) + "</td><td>" + esc(w.email) + "</td>" +
           '<td class="small">' + esc(w.waiver_version.replace("waiver 2026-11-20 / ", "")) + "</td><td>" + (a ? esc(a.full_name) : '<span class="muted">Not linked</span>') + "</td>" +
           '<td><button class="btn ghost sm" data-pdf="' + esc(w.pdf_path) + '" data-n="' + esc(w.full_name) + '">Download PDF</button></td></tr>';
       }).join("") + "</tbody></table>";
