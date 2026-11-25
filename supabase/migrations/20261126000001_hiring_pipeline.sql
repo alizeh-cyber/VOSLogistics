@@ -94,3 +94,6 @@ grant execute on function public.admin_applicant_progress() to authenticated;
 -- ---------- Next step type: interview / training / follow-up (applied as hiring_next_step_type) ----------
 alter table public.job_applications add column next_step_type text check (next_step_type in ('interview','training','follow_up'));
 -- job_applications_log() now prefixes "Interview:" / "Training:" in the history (see live function).
+
+-- ---------- Editable interview questions (applied as interview_questions) ----------
+-- portal_settings.interview_questions: [{ "q": question, "listen": what to listen for }], edited by admins in the Hiring guide.

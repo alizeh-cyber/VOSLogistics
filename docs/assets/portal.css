@@ -303,3 +303,19 @@ ul.qs li span { display:block; font-size:12px; color:var(--muted); margin-top:1p
   .hirelayout { grid-template-columns:1fr; }
   .hireside { position:static; max-height:none; order:-1; }
 }
+/* Editable interview questions */
+.qhead { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.qhead .link { font-weight:600; }
+.qedit { margin-top:6px; }
+.qrow { display:flex; gap:8px; align-items:flex-start; padding:8px 0; border-bottom:1px dashed var(--line); }
+.qnum { flex:0 0 18px; font-weight:700; color:var(--muted); font-size:12px; padding-top:8px; }
+.qfields { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
+.qfields textarea, .qfields input { font-size:13.5px; padding:7px 9px; }
+.qfields textarea { min-height:0; resize:vertical; }
+.qbtns { display:flex; flex-direction:column; gap:2px; }
+.qbtns .link { font-size:14px; padding:2px 6px; color:var(--muted); }
+.qbtns .link:disabled { opacity:.3; cursor:default; }
+.qbtns .qdel:hover { color:var(--err); }
+.qedit > .btn { margin-top:10px; }
+.qfields textarea { overflow:hidden; }
+.qlbl { font-size:11px; color:var(--muted); font-weight:600; margin-top:2px; }

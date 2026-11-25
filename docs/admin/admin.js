@@ -165,12 +165,7 @@
         "<li>Truck, van, SUV, or a car with a rack or trailer</li><li>Valid driver\'s license and auto insurance</li>" +
         "<li>Can lift 50+ lbs regularly</li><li>18 or older, has a smartphone</li><li>Can commit to 20+ hours a week</li></ul>" +
         '<p class="tiny">Any “no” here usually means it\'s not a fit right now.</p></li>' +
-      '<li><h4>Ask 3–4 of these</h4><ul class="qs">' +
-        "<li><b>“Which days and times can you commit to every week?”</b><span>Listen for: a specific, steady schedule, not “whenever”.</span></li>" +
-        "<li><b>“Tell me about a job where you worked on your own without a manager around.”</b><span>Listen for: self-starter, owns their work.</span></li>" +
-        "<li><b>“If you can\'t make a shift you signed up for, what would you do?”</b><span>Listen for: drops it in the app 24 hrs ahead and lets the lead know.</span></li>" +
-        "<li><b>“How do you feel about driving and parking downtown, including at night?”</b><span>Listen for: comfortable, safety-minded, knows parking rules matter.</span></li>" +
-        "<li><b>“What are you hoping to earn each week?”</b><span>Listen for: a goal that fits 20+ hrs. Helps set expectations.</span></li></ul></li>" +
+      '<li><h4 class="qhead">Ask 3–4 of these <button class="link tiny" id="qEdit">Edit questions</button></h4><div id="qBox">' + questionsHtml() + "</div></li>" +
       '<li><h4>Close and schedule training</h4>' +
         '<p><b>Good fit:</b> “Great! The next step is a hands-on training at the warehouse. Does [day] at [time] work for you?”</p><ul>' +
         "<li>In their card: set <b>Next step</b> to <b>Training</b> with the date and time, click <b>Save</b>, then move the stage to <b>Training scheduled</b>. It shows green on the calendar.</li>" +
@@ -181,7 +176,47 @@
       '<div class="flags"><b>Red flags</b><ul><li>No reliable vehicle or insurance</li><li>Can\'t commit to 20 hrs or a steady schedule</li><li>Vague answers about availability</li><li>Missed the scheduled call without a heads-up</li></ul></div>' +
       "</div></details>";
   }
+  function questionsList() { var q = data.settings && data.settings.interview_questions; return Array.isArray(q) ? q : []; }
+  function questionsHtml() {
+    var qs = questionsList();
+    return qs.length ? '<ul class="qs">' + qs.map(function (x) {
+      return "<li><b>“" + esc(x.q) + "”</b>" + (x.listen ? "<span>Listen for: " + esc(x.listen) + "</span>" : "") + "</li>";
+    }).join("") + "</ul>" : '<p class="tiny">No questions yet. Click “Edit questions” to add some.</p>';
+  }
+  function grow(el) { if (el.tagName === "TEXTAREA") { el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; } }
+  function questionsEditor() {
+    var box = $("qBox"), rows = questionsList().map(function (x) { return { q: x.q, listen: x.listen || "" }; });
+    function paint() {
+      box.innerHTML = '<div class="qedit">' + rows.map(function (x, i) {
+        return '<div class="qrow" data-i="' + i + '"><div class="qnum">' + (i + 1) + '</div><div class="qfields">' +
+          '<textarea rows="2" data-f="q" placeholder="Question">' + esc(x.q) + "</textarea>" +
+          '<span class="qlbl">Listen for (optional)</span><textarea rows="1" data-f="listen" placeholder="e.g. a steady weekly schedule">' + esc(x.listen) + "</textarea></div>" +
+          '<div class="qbtns"><button class="link tiny" data-up="' + i + '"' + (i === 0 ? " disabled" : "") + ' title="Move up">↑</button>' +
+          '<button class="link tiny" data-down="' + i + '"' + (i === rows.length - 1 ? " disabled" : "") + ' title="Move down">↓</button>' +
+          '<button class="link tiny qdel" data-del="' + i + '" title="Remove">✕</button></div></div>';
+      }).join("") + '<button class="btn ghost sm" id="qAdd">+ Add a question</button>' +
+        '<div class="hrow" style="margin-top:10px"><span></span><button class="btn ghost sm" id="qCancel">Cancel</button><button class="btn sm" id="qSave">Save questions</button></div>' +
+        '<div class="error" id="qErr"></div></div>';
+      box.querySelectorAll(".qrow").forEach(function (r) {
+        var i = +r.dataset.i;
+        r.querySelectorAll("[data-f]").forEach(function (inp) { inp.oninput = function () { rows[i][inp.dataset.f] = inp.value; grow(inp); }; grow(inp); });
+      });
+      box.querySelectorAll("[data-up]").forEach(function (b) { b.onclick = function () { var i = +b.dataset.up; var t = rows[i - 1]; rows[i - 1] = rows[i]; rows[i] = t; paint(); }; });
+      box.querySelectorAll("[data-down]").forEach(function (b) { b.onclick = function () { var i = +b.dataset.down; var t = rows[i + 1]; rows[i + 1] = rows[i]; rows[i] = t; paint(); }; });
+      box.querySelectorAll("[data-del]").forEach(function (b) { b.onclick = function () { rows.splice(+b.dataset.del, 1); paint(); }; });
+      $("qAdd").onclick = function () { rows.push({ q: "", listen: "" }); paint(); var t = box.querySelectorAll('textarea[data-f="q"]'); t[t.length - 1].focus(); };
+      $("qCancel").onclick = function () { box.innerHTML = questionsHtml(); $("qEdit").hidden = false; };
+      $("qSave").onclick = async function () {
+        var clean = rows.map(function (x) { return { q: x.q.trim(), listen: x.listen.trim() }; }).filter(function (x) { return x.q; });
+        var r = await sb.from("portal_settings").update({ interview_questions: clean, updated_at: new Date().toISOString() }).eq("id", true).select().single();
+        if (r.error) { $("qErr").textContent = "Could not save: " + r.error.message; return; }
+        data.settings = r.data; box.innerHTML = questionsHtml(); $("qEdit").hidden = false;
+      };
+    }
+    $("qEdit").hidden = true; paint();
+  }
   function bindGuide() {
+    if ($("qEdit")) $("qEdit").onclick = function (e) { e.preventDefault(); questionsEditor(); };
     var g = $("guide"); if (!g) return;
     g.addEventListener("toggle", function () { try { localStorage.setItem("vosGuideOpen", g.open ? "1" : "0"); } catch (e) {} });
     $("gCopy").onclick = function () {
@@ -202,9 +237,11 @@
       drawApps().then(function () { var el = document.querySelector('details.app[data-id="' + id + '"]'); if (el) { el.open = true; el.scrollIntoView({ behavior: "smooth", block: "start" }); el.classList.add("flash"); setTimeout(function () { el.classList.remove("flash"); }, 1600); } });
     }; });
   }
+  var appsSeq = 0, schedSeq = 0;
   async function drawApps() {
-    var v = $("view");
+    var v = $("view"), mine = ++appsSeq;
     var pr = await sb.rpc("admin_applicant_progress");
+    if (mine !== appsSeq || tab !== "apps") return; // a newer load has started; don't overwrite it
     data.progress = {}; (pr.data || []).forEach(function (x) { data.progress[x.application_id] = x; });
     var now = Date.now();
     var cnt = function (f) { return data.apps.filter(f).length; };
@@ -758,8 +795,9 @@
     $("nw").onclick = function () { schedWeek++; drawSchedule(); };
     if ($("tw")) $("tw").onclick = function () { schedWeek = 0; drawSchedule(); };
 
+    var mineS = ++schedSeq;
     var r = await sb.rpc("schedule_between", { d1: iso(mon), d2: iso(sun) });
-    if (tab !== "schedule") return;
+    if (tab !== "schedule" || mineS !== schedSeq) return;
     if (r.error) { $("wg").innerHTML = '<p class="error">Could not load the schedule.</p>'; return; }
     var by = {}; (r.data || []).forEach(function (x) { by[x.slot_id] = x; });
     var types = data.types.filter(function (t) { return t.active; });
