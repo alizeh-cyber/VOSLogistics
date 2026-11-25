@@ -1,6 +1,6 @@
 # VOS Logistics website
 
-One Netlify site (vos-logistics-jobs.netlify.app), published automatically from the `site/` folder of this repo.
+The website (https://alizeh-cyber.github.io/VOSLogistics/) is published by GitHub Pages from the `docs/` folder of this repo.
 
 | Page | What it is | Who can see it |
 |---|---|---|

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lime Field Operations Associate (Austin) – VOS Logistics | $30–$50/hr</title>
 <meta name="description" content="VOS Logistics, Lime's operations partner in Austin, is hiring Field Operations Associates. $30–$50/hr, paid weekly, 20+ hrs/week. Apply online.">
-<link rel="canonical" href="https://vos-logistics-jobs.netlify.app/">
+<link rel="canonical" href="https://alizeh-cyber.github.io/VOSLogistics/">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org/",
@@ -265,13 +265,6 @@
 </aside>
 </div>
 </main>
-<!-- Hidden copy of the application form so Netlify registers it and emails each submission. -->
-<form name="job-application" data-netlify="true" netlify-honeypot="bot-field" hidden>
-  <input name="bot-field"><input name="name"><input name="phone"><input name="email"><input name="zip">
-  <input name="hours_per_week"><input name="days"><input name="times"><input name="start_date"><input name="vehicle">
-  <input name="license_insurance"><input name="can_lift_50"><input name="18_plus">
-  <textarea name="anything_else"></textarea><input name="heard_from">
-</form>
 <footer><div class="wrap">© 2026 VOS Logistics · Austin, Texas</div></footer>
 
 <script>
@@ -316,15 +309,6 @@ $("applyForm").addEventListener("submit", async e => {
     btn.disabled = false; btn.textContent = "Submit application";
     return;
   }
-  // Copy to Netlify Forms so an email notification goes out (doesn't block the applicant)
-  const yn = b => b ? "Yes" : "No";
-  fetch("/", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ "form-name": "job-application", name: row.full_name, phone: row.phone, email: row.email,
-      zip: row.zip_code, hours_per_week: row.hours_per_week, days: days.join(", "), times: times.join(", "),
-      start_date: row.start_date, vehicle: vehicle,
-      license_insurance: yn(row.has_license_insurance), can_lift_50: yn(row.can_lift_50), "18_plus": yn(row.is_18_plus),
-      anything_else: row.notes || "", heard_from: row.heard_from || "" }).toString()
-  }).catch(e => console.error(e));
   $("formView").classList.add("hidden");
   $("doneView").classList.remove("hidden");
 });

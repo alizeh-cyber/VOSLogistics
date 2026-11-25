@@ -70,7 +70,7 @@
           if (!name) { err.textContent = "Please enter your full name."; return; }
           if (!phone) { err.textContent = "Please enter your phone number."; return; }
           if (pass.length < 8) { err.textContent = "Password must be at least 8 characters."; return; }
-          var s = await sb.auth.signUp({ email: email, password: pass, options: { data: { full_name: name, phone: phone }, emailRedirectTo: location.origin + "/portal/" } });
+          var s = await sb.auth.signUp({ email: email, password: pass, options: { data: { full_name: name, phone: phone }, emailRedirectTo: new URL("./", location.href).href } });
           if (s.error) {
             err.textContent = /already|registered|exists/i.test(s.error.message) ? "An account with that email already exists. Try logging in." : "Could not create the account: " + s.error.message;
             return;
@@ -78,7 +78,7 @@
           if (s.data.session) { session = s.data.session; route(); }
           else showAuth("login", "Account created. You can log in now.");
         } else {
-          var f = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/portal/" });
+          var f = await sb.auth.resetPasswordForEmail(email, { redirectTo: new URL("./", location.href).href });
           if (f.error) { err.textContent = "Could not send the email. Please try again in a few minutes."; return; }
           ok.textContent = "If that email has an account, a reset link is on its way.";
         }
@@ -97,7 +97,7 @@
       if (p.length < 8) { $("pwErr").textContent = "Password must be at least 8 characters."; return; }
       var r = await sb.auth.updateUser({ password: p });
       if (r.error) { $("pwErr").textContent = "Could not save: " + r.error.message; return; }
-      recovering = false; history.replaceState(null, "", "/portal/"); route();
+      recovering = false; history.replaceState(null, "", location.pathname); route();
     };
   }
 
@@ -112,7 +112,7 @@
     if (!me) {
       var adm = await sb.rpc("is_admin");
       app.innerHTML = adm.data
-        ? '<div class="card"><h1>This is the admin account</h1><p>Go to the <a href="/admin/">admin dashboard</a>.</p></div>'
+        ? '<div class="card"><h1>This is the admin account</h1><p>Go to the <a href="../admin/">admin dashboard</a>.</p></div>'
         : '<div class="card"><h1>Profile not found</h1><p>Please contact your VOS lead.</p></div>';
       return;
     }
@@ -172,10 +172,10 @@
     app.innerHTML = updated
       ? '<div class="card warn"><div class="eyebrow">Action needed</div><h1>Please sign your updated agreement</h1>' +
         "<p>Your pay terms with VOS have been updated. Please read and sign your updated Independent Contractor Agreement to keep picking shifts. Your existing shifts stay booked.</p>" +
-        '<a class="btn" href="/sign/">Read and sign</a></div>' + profileCard()
+        '<a class="btn" href="../sign/">Read and sign</a></div>' + profileCard()
       : '<div class="card ok"><div class="eyebrow">Step 2 of 2</div><h1>You\'re approved</h1>' +
       "<p>Before you can sign up for shifts, please read and sign the Independent Contractor Agreement and Liability Waiver. It takes about 5 minutes.</p>" +
-      '<a class="btn" href="/sign/">Read and sign</a></div>' + profileCard();
+      '<a class="btn" href="../sign/">Read and sign</a></div>' + profileCard();
     bindProfile();
   }
 

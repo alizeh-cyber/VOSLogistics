@@ -2,7 +2,7 @@
 window.VOS = {
   SUPABASE_URL: "https://xzlnzldolzqlhbqfgjeh.supabase.co",
   SUPABASE_KEY: "sb_publishable_NqaGDUXVR33CekpHZyntFg_f-i5FDGy",
-  JOB_URL: "https://vos-logistics-jobs.netlify.app/",
+  JOB_URL: "https://alizeh-cyber.github.io/VOSLogistics/",
   SWAPS_ADVANCED: 40,
   SWAPS_BEGINNER: 25
 };

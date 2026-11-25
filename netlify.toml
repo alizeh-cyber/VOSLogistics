@@ -1,6 +1,6 @@
-# VOS Logistics site – deployed by Netlify straight from this repo (no build step).
+# Legacy: the site now lives on GitHub Pages (docs/). Kept so an old Netlify build still serves the right files.
 [build]
-  publish = "site"
+  publish = "docs"
 
 # Short links
 [[redirects]]
