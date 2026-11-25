@@ -304,7 +304,7 @@
       '<div class="stat"><div class="k">This year</div><div class="v">' + money(sum(function (x) { return x.week_start.slice(0, 4) === y; })) + "</div></div></div>" +
       '<div class="card"><h2>Weekly earnings</h2><div class="tablewrap"><table><thead><tr><th>Week</th><th class="num">Tasks</th><th class="num">Pay</th></tr></thead><tbody>' +
       rows.map(function (x) { return "<tr><td>" + lbl(x.week_start, x.week_end) + ", " + x.week_end.slice(0, 4) + '</td><td class="num">' + x.tasks + '</td><td class="num"><b>' + money(x.actual_pay) + "</b></td></tr>"; }).join("") +
-      '</tbody></table></div><p class="small muted" style="margin-top:12px">Weeks run Monday to Sunday, and pay for each week goes out by the following Wednesday. Pay is what VOS pays you for the week after its service fee and any bonus. Questions? Text your VOS lead.</p></div>';
+      '</tbody></table></div></div>';
   }
 
   function render() {
