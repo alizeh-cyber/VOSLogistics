@@ -220,6 +220,23 @@ const para = x => typeof x === "string" ? `<p>${esc(x)}</p>` : `<p class="caps">
 const fieldsHtml = `<p>Contractor: the person signing below<br>Business name: as entered below (if any)<br>Start date: the date signed below</p>`;
 const tableHtml = t => `<table>${t.map((r, i) => `<tr>${r.map(c => i ? `<td>${esc(c)}</td>` : `<th>${esc(c)}</th>`).join("")}</tr>`).join("")}</table>`;
 const partHtml = x => x && x.fields ? fieldsHtml : para(x);
+// Section 3 (Pay) shows only the signer's own pay plan, plus the referral discount.
+const ICA_PAY = ICA[2];
+const ICA_PAY_INTRO = ICA_PAY.p.slice();
+const ICA_PAY_AFTER = ICA_PAY.after.slice();
+const REFERRAL = "Referral discount. Once Contractor has completed at least 200 Tasks, Contractor can earn a referral discount. When someone Contractor referred joins VOS and completes their first 200 Tasks, the VOS service fee on Contractor's Tasks drops by $0.05 per Task for 3 months. Each qualifying referral earns its own $0.05 discount for its own 3 months, and discounts from more than one referral add together. The discount applies to Contractor's pay plan as written above, and the service fee never goes below $0.00.";
+const money = f => "$" + Number(f).toFixed(2);
+function applyPayPlan(plan) {
+  if (plan.kind === "flat") {
+    ICA_PAY.p = ["Contractor is paid per completed Task. VOS keeps a flat service fee of " + money(plan.tiers[0].fee) + " from each Task, no matter how many Tasks Contractor completes in the week."];
+    ICA_PAY.table = [["Tasks completed in the week", "VOS service fee per Task"], ["Any number", money(plan.tiers[0].fee)]];
+  } else {
+    ICA_PAY.p = ICA_PAY_INTRO.slice();
+    ICA_PAY.table = [["Tasks completed in the week", "VOS service fee per Task"]].concat(plan.tiers.map(t => [t.label, money(t.fee)]));
+  }
+  ICA_PAY.after = [REFERRAL].concat(ICA_PAY_AFTER);
+}
+function renderDocs() {
 document.getElementById("waiverText").innerHTML = DOCS.map(d =>
   `<h1>${esc(d.title)}</h1>` + d.sections.map(s =>
     `<h2>${esc(s.h)}</h2>` + s.p.map(partHtml).join("") +
@@ -228,6 +245,7 @@ document.getElementById("waiverText").innerHTML = DOCS.map(d =>
     (s.after ? s.after.map(para).join("") : "")
   ).join("")
 ).join("");
+}
 
 // ---------- Signature pad ----------
 const pad = document.getElementById("sigPad");
@@ -320,24 +338,38 @@ const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
 const errBox = $("error");
 
-// If an associate is logged in to the VOS portal, link this waiver to their account and prefill their details.
-let currentUser = null;
+// Signing requires a logged-in, approved VOS portal account: the agreement shows that person's own pay plan.
+let currentUser = null, payPlan = null;
+function gate(html) {
+  $("waiverForm").classList.add("hidden");
+  $("waiverText").parentElement.classList.add("hidden");
+  const note = $("acctNote"); note.innerHTML = html; note.classList.remove("hidden");
+}
+const gateBtn = '<p style="margin-top:12px"><a href="/portal/" style="display:inline-block;padding:12px 18px;background:var(--lime);color:#fff;border-radius:8px;text-decoration:none;font-weight:700">Go to the VOS portal</a></p>';
+$("waiverForm").classList.add("hidden");
 supa.auth.getSession().then(async ({ data }) => {
   const u = data && data.session && data.session.user;
-  const note = $("acctNote");
-  if (u && !u.is_anonymous) {
-    currentUser = u;
-    const { data: a } = await supa.from("associates").select("full_name,phone,email").eq("user_id", u.id).maybeSingle();
-    if (a) {
-      if (!$("fullName").value) $("fullName").value = a.full_name || "";
-      if (!$("phone").value) $("phone").value = a.phone || "";
-      if (!$("email").value) $("email").value = a.email || u.email || "";
-    }
-    note.textContent = "Signing as " + ((a && a.full_name) || u.email) + ". This agreement will be saved to your VOS portal account.";
-  } else {
-    note.innerHTML = 'Already have a VOS portal account? <a href="/portal/" style="color:var(--lime);font-weight:600">Log in first</a> so your signed agreement is saved to your account.';
+  if (!u || u.is_anonymous) {
+    gate("<b>Please log in first.</b><br>Your contractor agreement is personal to you, so you sign it from your VOS portal account. New to VOS? Create an account in the portal, then come back here." + gateBtn);
+    return;
   }
+  const { data: a } = await supa.from("associates").select("full_name,phone,email,status,pay_plan").eq("user_id", u.id).maybeSingle();
+  if (!a || a.status !== "approved") {
+    gate("<b>Your account isn't approved yet.</b><br>Once VOS approves your account, you can sign your agreement here." + gateBtn);
+    return;
+  }
+  const { data: plan } = await supa.from("pay_plans").select("kind,tiers").eq("code", a.pay_plan).maybeSingle();
+  if (!plan) { gate("<b>Your pay details aren't set up yet.</b><br>Please contact your VOS lead." + gateBtn); return; }
+  currentUser = u; payPlan = plan;
+  applyPayPlan(plan); renderDocs();
+  if (!$("fullName").value) $("fullName").value = a.full_name || "";
+  if (!$("phone").value) $("phone").value = a.phone || "";
+  if (!$("email").value) $("email").value = a.email || u.email || "";
+  const note = $("acctNote");
+  note.textContent = "Signing as " + a.full_name + ". This agreement will be saved to your VOS portal account.";
   note.classList.remove("hidden");
+  $("waiverForm").classList.remove("hidden");
+  sizePad();
 });
 
 $("waiverForm").addEventListener("submit", async e => {
@@ -353,6 +385,7 @@ $("waiverForm").addEventListener("submit", async e => {
   if (!/^\S+@\S+\.\S+$/.test(d.email)) return errBox.textContent = "Please enter a valid email.";
   if (!hasInk) return errBox.textContent = "Please sign in the signature box.";
   if (!$("agree").checked) return errBox.textContent = "Please check the box to agree.";
+  if (!currentUser || !payPlan) return errBox.textContent = "Please log in to the VOS portal first.";
 
   const btn = $("submitBtn"); btn.disabled = true; btn.textContent = "Submitting…";
   try {
@@ -374,7 +407,7 @@ $("waiverForm").addEventListener("submit", async e => {
       id: d.submission_id, full_name: d.full_name, business_name: d.business_name || null, id_number: d.id_number, phone: d.phone, email: d.email,
       initials_section3: d.initials_section3, initials_section4: d.initials_section4,
       waiver_version: VERSION, pdf_path: path, user_agent: navigator.userAgent,
-      user_id: currentUser ? currentUser.id : null
+      user_id: currentUser.id
     });
     if (ins.error) throw ins.error;
 
@@ -383,7 +416,7 @@ $("waiverForm").addEventListener("submit", async e => {
     link.download = `VOS_Logistics_Agreement_and_Waiver_${safeName}.pdf`;
     $("formView").classList.add("hidden");
     $("doneView").classList.remove("hidden");
-    if (currentUser) $("portalNext").classList.remove("hidden");
+    $("portalNext").classList.remove("hidden");
     window.scrollTo(0, 0);
   } catch (err) {
     console.error(err);

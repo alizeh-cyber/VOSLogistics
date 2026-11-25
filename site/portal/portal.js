@@ -70,7 +70,7 @@
             return;
           }
           if (s.data.session) { session = s.data.session; route(); }
-          else showAuth("login", "Account created. Check your email and click the link to confirm it, then log in.");
+          else showAuth("login", "Account created. Check your email (and spam folder) and click the link to confirm it, then log in.");
         } else {
           var f = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/portal/" });
           if (f.error) { err.textContent = "Could not send the email. Please try again in a few minutes."; return; }
@@ -115,9 +115,10 @@
       return;
     }
     if (me.status === "pending") { showPending(); return; }
-    var w = await sb.from("waiver_signatures").select("id,signed_at,pdf_path,waiver_version").eq("user_id", me.user_id).order("signed_at", { ascending: false }).limit(1);
+    var w = await sb.from("waiver_signatures").select("id,signed_at,pdf_path,waiver_version,pay_plan").eq("user_id", me.user_id).order("signed_at", { ascending: false }).limit(1);
     waiver = (w.data && w.data[0]) || null;
-    if (!waiver) { showNeedWaiver(); return; }
+    if (!waiver) { showNeedWaiver(false); return; }
+    if (waiver.pay_plan !== me.pay_plan) { showNeedWaiver(true); return; }
     showDashboard();
   }
 
@@ -150,8 +151,12 @@
     $("recheck").onclick = route; bindProfile();
   }
 
-  function showNeedWaiver() {
-    app.innerHTML = '<div class="card ok"><div class="eyebrow">Step 2 of 2</div><h1>You\'re approved</h1>' +
+  function showNeedWaiver(updated) {
+    app.innerHTML = updated
+      ? '<div class="card warn"><div class="eyebrow">Action needed</div><h1>Please sign your updated agreement</h1>' +
+        "<p>Your pay terms with VOS have been updated. Please read and sign your updated Independent Contractor Agreement to keep picking shifts. Your existing shifts stay booked.</p>" +
+        '<a class="btn" href="/sign/">Read and sign</a></div>' + profileCard()
+      : '<div class="card ok"><div class="eyebrow">Step 2 of 2</div><h1>You\'re approved</h1>' +
       "<p>Before you can sign up for shifts, please read and sign the Independent Contractor Agreement and Liability Waiver. It takes about 5 minutes.</p>" +
       '<a class="btn" href="/sign/">Read and sign</a></div>' + profileCard();
     bindProfile();

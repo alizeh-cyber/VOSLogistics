@@ -129,3 +129,19 @@ drop policy "public can upload waiver pdfs" on storage.objects;
 create policy "associates upload waiver pdfs" on storage.objects
   for insert to authenticated
   with check (bucket_id = 'waivers' and coalesce((auth.jwt()->>'is_anonymous')::boolean, false) = false);
+
+-- ---------- Booking requires an agreement signed under the current pay plan (applied as can_book_requires_current_plan) ----------
+create or replace function public.can_book()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.associates a
+    where a.user_id = auth.uid() and a.status = 'approved'
+      and exists (
+        select 1 from public.waiver_signatures w
+        where w.user_id = a.user_id and w.pay_plan = a.pay_plan
+      )
+  );
+$$;
+
+-- Shorter plan names for the admin screens
+update public.pay_plans set label = case code when 'scale_100' then 'Scale A ($1.00 start)' when 'scale_080' then 'Scale B ($0.80 start)' when 'flat_030' then 'Flat $0.30' when 'flat_010' then 'Flat $0.10' end;

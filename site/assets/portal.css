@@ -124,3 +124,4 @@ footer { color:var(--muted); font-size:13px; padding:10px 0 30px; }
   h1 { font-size:22px; }
   .card { padding:16px; }
 }
+td select { padding:5px 8px; font-size:14px; width:auto; }

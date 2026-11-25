@@ -9,7 +9,7 @@
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var APP_STATUS = { new: ["New", "blue"], contacted: ["Contacted", "amber"], hired: ["Hired", "green"], not_a_fit: ["Not a fit", "red"] };
   var ASSOC_STATUS = { pending: ["Waiting for approval", "amber"], approved: ["Approved", "green"], declined: ["Declined", "red"] };
-  var data = { apps: [], assoc: [], waivers: [], types: [], settings: null, sched: [] };
+  var data = { apps: [], assoc: [], waivers: [], types: [], settings: null, sched: [], plans: [], invites: [] };
   var schedWeek = 0;
   try { tab = localStorage.getItem("vosAdminTab") || "apps"; } catch (e) {}
 
@@ -54,10 +54,12 @@
     var r = await Promise.all([
       sb.from("job_applications").select("*").order("applied_at", { ascending: false }),
       sb.from("associates").select("*").order("created_at", { ascending: false }),
-      sb.from("waiver_signatures").select("id,signed_at,full_name,business_name,phone,email,waiver_version,pdf_path,user_id").order("signed_at", { ascending: false }),
+      sb.from("waiver_signatures").select("id,signed_at,full_name,business_name,phone,email,waiver_version,pdf_path,user_id,pay_plan").order("signed_at", { ascending: false }),
       sb.from("shift_types").select("*").order("code"),
       sb.from("portal_settings").select("*").single(),
-      sb.from("app_admins").select("user_id")
+      sb.from("app_admins").select("user_id"),
+      sb.from("pay_plans").select("*").order("sort"),
+      sb.from("roster_invites").select("*").order("full_name")
     ]);
     var admins = (r[5].data || []).map(function (x) { return x.user_id; });
     data.apps = r[0].data || [];
@@ -65,17 +67,22 @@
     data.waivers = r[2].data || [];
     data.types = r[3].data || [];
     data.settings = r[4].data;
+    data.plans = r[6].data || [];
+    data.invites = r[7].data || [];
   }
+  function planLabel(code) { var p = data.plans.filter(function (x) { return x.code === code; })[0]; return p ? p.label : (code || "—"); }
+  function planOptions(sel) { return data.plans.map(function (p) { return '<option value="' + esc(p.code) + '"' + (p.code === sel ? " selected" : "") + ">" + esc(p.label) + "</option>"; }).join(""); }
+  function planTiers(code) { var p = data.plans.filter(function (x) { return x.code === code; })[0]; return p ? p.tiers.map(function (t) { return t.label + ": $" + Number(t.fee).toFixed(2); }).join(" · ") : ""; }
 
   function draw() {
     var pending = data.assoc.filter(function (a) { return a.status === "pending"; }).length;
     var newApps = data.apps.filter(function (a) { return a.status === "new"; }).length;
-    var tabs = [["apps", "Job applications", newApps], ["roster", "Associates", pending], ["schedule", "Schedule", 0], ["waivers", "Waivers", 0], ["settings", "Shift settings", 0]];
+    var tabs = [["apps", "Job applications", newApps], ["roster", "Associates", pending], ["team", "Team list", 0], ["schedule", "Schedule", 0], ["waivers", "Waivers", 0], ["settings", "Shift settings", 0]];
     $("mainTabs").innerHTML = tabs.map(function (t) {
       return '<button class="tab' + (tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '">' + t[1] + (t[2] ? '<span class="count">' + t[2] + "</span>" : "") + "</button>";
     }).join("");
     $("mainTabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { tab = b.dataset.t; try { localStorage.setItem("vosAdminTab", tab); } catch (e) {} draw(); }; });
-    ({ apps: drawApps, roster: drawRoster, schedule: drawSchedule, waivers: drawWaivers, settings: drawSettings })[tab]();
+    ({ apps: drawApps, roster: drawRoster, team: drawTeam, schedule: drawSchedule, waivers: drawWaivers, settings: drawSettings })[tab]();
   }
 
   // ---------- Job applications ----------
@@ -158,15 +165,27 @@
       .sort(function (a, b) { return a.full_name.localeCompare(b.full_name); });
     $("rcount").textContent = rows.length + " associate" + (rows.length === 1 ? "" : "s");
     if (!rows.length) { $("rtable").innerHTML = '<p class="muted">No associates yet. New accounts appear above for approval.</p>'; return; }
-    $("rtable").innerHTML = "<table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Waiver signed</th><th>Date signed</th><th>Account</th><th></th></tr></thead><tbody>" +
+    $("rtable").innerHTML = "<table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Pay plan</th><th>Waiver signed</th><th>Date signed</th><th>Account</th><th></th></tr></thead><tbody>" +
       rows.map(function (a) {
         var w = waiverFor(a.user_id);
         return "<tr><td><b>" + esc(a.full_name) + '</b></td><td><a href="tel:' + esc(a.phone) + '">' + esc(a.phone) + '</a></td><td><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a></td>" +
-          "<td>" + (w ? '<span class="badge green">Yes</span>' : '<span class="badge amber">No</span>') + "</td><td>" + (w ? fmtDate(w.signed_at) : "—") + "</td>" +
+          '<td><select data-plan="' + a.user_id + '" title="' + esc(planTiers(a.pay_plan)) + '" style="width:auto">' + planOptions(a.pay_plan) + "</select></td>" +
+          "<td>" + (w ? (w.pay_plan === a.pay_plan ? '<span class="badge green">Yes</span>' : '<span class="badge amber" title="Signed under a different pay plan">Needs to re-sign</span>') : '<span class="badge amber">No</span>') + "</td><td>" + (w ? fmtDate(w.signed_at) : "—") + "</td>" +
           "<td>" + badge(ASSOC_STATUS, a.status) + "</td><td>" +
           (a.status === "approved" ? '<button class="btn danger sm" data-revoke="' + a.user_id + '">Remove access</button>' : '<button class="btn ghost sm" data-reapprove="' + a.user_id + '">Approve</button>') + "</td></tr>";
       }).join("") + "</tbody></table>";
     $("rtable").querySelectorAll("[data-revoke]").forEach(function (b) { b.onclick = function () { if (confirm("Remove this associate's access to the schedule? Their existing sign-ups stay until you remove them.")) setStatus(b.dataset.revoke, "declined"); }; });
+    $("rtable").querySelectorAll("select[data-plan]").forEach(function (sel) {
+      var before = sel.value;
+      sel.onchange = async function () {
+        var w = waiverFor(sel.dataset.plan);
+        if (w && !confirm("Change this pay plan to: " + planTiers(sel.value) + "?\n\nThey'll be asked to sign an updated agreement before booking more shifts.")) { sel.value = before; return; }
+        var r = await sb.from("associates").update({ pay_plan: sel.value }).eq("user_id", sel.dataset.plan).select().single();
+        if (r.error || r.data.pay_plan !== sel.value) { alert("Could not change the pay plan."); sel.value = before; return; }
+        data.assoc = data.assoc.map(function (a) { return a.user_id === r.data.user_id ? r.data : a; });
+        rosterTable();
+      };
+    });
     $("rtable").querySelectorAll("[data-reapprove]").forEach(function (b) { b.onclick = function () { setStatus(b.dataset.reapprove, "approved"); }; });
   }
   async function setStatus(uid, st) {
@@ -174,6 +193,64 @@
     if (r.error) { alert("Could not update the account."); return; }
     data.assoc = data.assoc.map(function (a) { return a.user_id === uid ? r.data : a; });
     draw();
+  }
+
+  // ---------- Team list (pre-approved emails) ----------
+  var teamQ = "";
+  function drawTeam() {
+    var v = $("view");
+    v.innerHTML = '<div class="card"><h2>Pre-approved team list</h2><p class="small muted">When someone on this list creates a portal account with this email and confirms it, they\'re approved automatically and their agreement shows this pay plan. Pay plans are private: each person only ever sees their own.</p>' +
+      '<div class="toolbar"><input type="search" id="tq" placeholder="Search name, phone, email…" value="' + esc(teamQ) + '"><span class="muted small" id="tcount"></span></div><div class="tablewrap" id="ttable"></div></div>' +
+      '<div class="card"><h2>Add someone</h2><form id="addInv" novalidate><div class="row"><div><label for="inName">Full name</label><input type="text" id="inName" maxlength="80"></div>' +
+      '<div><label for="inEmail">Email</label><input type="email" id="inEmail"></div><div><label for="inPhone">Phone</label><input type="tel" id="inPhone" maxlength="30"></div></div>' +
+      '<label for="inPlan">Pay plan</label><select id="inPlan" style="max-width:340px">' + planOptions("scale_100") + "</select>" +
+      '<p class="small muted" id="inTiers" style="margin-top:6px"></p><button class="btn" id="inBtn">Add to team list</button><div class="error" id="inErr"></div></form></div>' +
+      '<div class="card"><h2>Pay plans</h2><ul class="list">' + data.plans.map(function (p) { return "<li><b>" + esc(p.label) + '</b><span class="small muted">' + esc(planTiers(p.code)) + "</span></li>"; }).join("") + "</ul></div>";
+    var showTiers = function () { $("inTiers").textContent = planTiers($("inPlan").value); };
+    $("inPlan").onchange = showTiers; showTiers();
+    $("tq").oninput = function () { teamQ = this.value; teamTable(); };
+    $("addInv").onsubmit = async function (e) {
+      e.preventDefault();
+      var err = $("inErr"); err.className = "error"; err.textContent = "";
+      var row = { full_name: $("inName").value.trim(), email: $("inEmail").value.trim().toLowerCase(), phone: $("inPhone").value.trim(), pay_plan: $("inPlan").value };
+      if (!row.full_name) { err.textContent = "Please enter a name."; return; }
+      if (!/^\S+@\S+\.\S+$/.test(row.email)) { err.textContent = "Please enter a valid email."; return; }
+      var r = await sb.from("roster_invites").insert(row).select().single();
+      if (r.error) { err.textContent = r.error.code === "23505" ? "That email is already on the list." : "Could not add: " + r.error.message; return; }
+      await loadAll(); draw();
+    };
+    teamTable();
+  }
+  function teamTable() {
+    var q = teamQ.trim().toLowerCase();
+    var rows = data.invites.filter(function (i) { return !q || [i.full_name, i.email, i.phone].join(" ").toLowerCase().indexOf(q) >= 0; });
+    var joined = data.invites.filter(function (i) { return i.claimed_by; }).length;
+    $("tcount").textContent = data.invites.length + " people · " + joined + " signed up";
+    if (!rows.length) { $("ttable").innerHTML = '<p class="muted">Nobody matches.</p>'; return; }
+    $("ttable").innerHTML = "<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Pay plan</th><th>Portal account</th><th></th></tr></thead><tbody>" +
+      rows.map(function (i) {
+        return "<tr><td><b>" + esc(i.full_name) + "</b></td><td>" + esc(i.email) + "</td><td>" + esc(i.phone) + "</td>" +
+          '<td><select data-inv="' + esc(i.email) + '" style="width:auto">' + planOptions(i.pay_plan) + "</select></td>" +
+          "<td>" + (i.claimed_by ? '<span class="badge green">Signed up ' + fmtDate(i.claimed_at) + "</span>" : '<span class="badge">Not yet</span>') + "</td>" +
+          '<td><button class="btn danger sm" data-del="' + esc(i.email) + '">Remove</button></td></tr>';
+      }).join("") + "</tbody></table>";
+    $("ttable").querySelectorAll("select[data-inv]").forEach(function (sel) {
+      sel.onchange = async function () {
+        var inv = data.invites.filter(function (i) { return i.email === sel.dataset.inv; })[0];
+        if (inv.claimed_by && !confirm("Change " + inv.full_name + "'s pay plan to: " + planTiers(sel.value) + "?\n\nIf they've already signed, they'll be asked to sign an updated agreement.")) { sel.value = inv.pay_plan; return; }
+        var r = await sb.from("roster_invites").update({ pay_plan: sel.value }).eq("email", inv.email).select().single();
+        if (r.error) { alert("Could not change the pay plan."); sel.value = inv.pay_plan; return; }
+        await loadAll(); teamTable();
+      };
+    });
+    $("ttable").querySelectorAll("[data-del]").forEach(function (b) {
+      b.onclick = async function () {
+        if (!confirm("Remove " + b.dataset.del + " from the pre-approved list? (This doesn't remove an existing portal account.)")) return;
+        var r = await sb.from("roster_invites").delete().eq("email", b.dataset.del);
+        if (r.error) { alert("Could not remove."); return; }
+        await loadAll(); teamTable();
+      };
+    });
   }
 
   // ---------- Schedule ----------
