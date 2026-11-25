@@ -150,6 +150,47 @@
     if (!evs.length) h += '<p class="small muted" style="margin:10px 0 0">Nothing scheduled this week. Set a next step with a date on an applicant to see it here.</p>';
     return h + "</div>";
   }
+  function guideHtml() {
+    var open = window.innerWidth >= 1000;
+    try { var g = localStorage.getItem("vosGuideOpen"); if (g !== null) open = g === "1"; } catch (e) {}
+    var portal = new URL("../portal/", location.href).href;
+    return '<details class="guide card"' + (open ? " open" : "") + ' id="guide"><summary><span class="gtitle">Phone interview guide</span><span class="tiny">About 10 minutes</span></summary><div class="gbody">' +
+      '<ol class="gsteps">' +
+      '<li><h4>Open the call</h4><p class="say">“Hi [name], this is [you] with VOS Logistics, Lime\'s operations partner in Austin. You applied for the Field Operations Associate role. Is now still a good time for a quick 10-minute call?”</p></li>' +
+      '<li><h4>Explain the role (30 sec)</h4><ul>' +
+        "<li>Swap batteries on Lime scooters, move scooters to busy areas, keep the fleet clean and safe.</li>" +
+        "<li>Independent contractor (1099), paid per completed task, <b>paid weekly</b>. Most people make <b>$30–$50/hr</b>.</li>" +
+        "<li><b>20+ hours a week</b>, in 4-hour shifts they pick in our app. Some shifts are nights and early mornings.</li></ul></li>" +
+      '<li><h4>Confirm the must-haves</h4><ul class="checklist">' +
+        "<li>Truck, van, SUV, or a car with a rack or trailer</li><li>Valid driver\'s license and auto insurance</li>" +
+        "<li>Can lift 50+ lbs regularly</li><li>18 or older, has a smartphone</li><li>Can commit to 20+ hours a week</li></ul>" +
+        '<p class="tiny">Any “no” here usually means it\'s not a fit right now.</p></li>' +
+      '<li><h4>Ask 3–4 of these</h4><ul class="qs">' +
+        "<li><b>“Which days and times can you commit to every week?”</b><span>Listen for: a specific, steady schedule, not “whenever”.</span></li>" +
+        "<li><b>“Tell me about a job where you worked on your own without a manager around.”</b><span>Listen for: self-starter, owns their work.</span></li>" +
+        "<li><b>“If you can\'t make a shift you signed up for, what would you do?”</b><span>Listen for: drops it in the app 24 hrs ahead and lets the lead know.</span></li>" +
+        "<li><b>“How do you feel about driving and parking downtown, including at night?”</b><span>Listen for: comfortable, safety-minded, knows parking rules matter.</span></li>" +
+        "<li><b>“What are you hoping to earn each week?”</b><span>Listen for: a goal that fits 20+ hrs. Helps set expectations.</span></li></ul></li>" +
+      '<li><h4>Close and schedule training</h4>' +
+        '<p><b>Good fit:</b> “Great! The next step is a hands-on training at the warehouse. Does [day] at [time] work for you?”</p><ul>' +
+        "<li>In their card: set <b>Next step</b> to <b>Training</b> with the date and time, click <b>Save</b>, then move the stage to <b>Training scheduled</b>. It shows green on the calendar.</li>" +
+        "<li>Tell them to bring: <b>reflective vest, work gloves, their vehicle and phone</b>.</li>" +
+        "<li>Text them the portal link so they create an account and sign the agreement <b>before</b> training:</li></ul>" +
+        '<div class="hrow" style="margin:6px 0 10px"><input type="text" readonly value="' + esc(portal) + '" id="gPortal"><button class="btn sm" id="gCopy">Copy link</button></div>' +
+        '<p><b>Not a fit:</b> thank them for their time, set the stage to <b>Not a fit</b> and add a short note why.</p></li></ol>' +
+      '<div class="flags"><b>Red flags</b><ul><li>No reliable vehicle or insurance</li><li>Can\'t commit to 20 hrs or a steady schedule</li><li>Vague answers about availability</li><li>Missed the scheduled call without a heads-up</li></ul></div>' +
+      "</div></details>";
+  }
+  function bindGuide() {
+    var g = $("guide"); if (!g) return;
+    g.addEventListener("toggle", function () { try { localStorage.setItem("vosGuideOpen", g.open ? "1" : "0"); } catch (e) {} });
+    $("gCopy").onclick = function () {
+      var v = $("gPortal").value, b = $("gCopy");
+      var done = function () { b.textContent = "Copied ✓"; setTimeout(function () { b.textContent = "Copy link"; }, 1500); };
+      if (navigator.clipboard) navigator.clipboard.writeText(v).then(done, function () { $("gPortal").select(); });
+      else { $("gPortal").select(); }
+    };
+  }
   function bindCalendar() {
     $("calPrev").onclick = function () { calWeek--; drawApps(); };
     $("calNext").onclick = function () { calWeek++; drawApps(); };
@@ -171,13 +212,14 @@
     var chips = [["open", "All open", cnt(function (a) { return OPEN_STAGES.indexOf(a.status) >= 0; })], ["due", "Needs follow-up", due]]
       .concat(STAGES.map(function (st) { return [st[0], st[1], cnt(function (a) { return a.status === st[0]; })]; }))
       .concat([["all", "Everyone", data.apps.length]]);
-    v.innerHTML = calendarHtml() + '<div class="pipe">' + chips.map(function (c) {
+    v.innerHTML = '<div class="hirelayout"><div class="hiremain">' + calendarHtml() + '<div class="pipe">' + chips.map(function (c) {
         if (!c[2] && ["open", "all", "new"].indexOf(c[0]) < 0 && c[0] !== appF) return "";
         return '<button class="pstage' + (appF === c[0] ? " on" : "") + (c[0] === "due" && c[2] ? " warn" : "") + '" data-f="' + c[0] + '">' + esc(c[1]) + " <b>" + c[2] + "</b></button>";
       }).join("") + "</div>" +
-      '<div class="toolbar"><input type="search" id="aq" placeholder="Search name, phone, email, ZIP…" value="' + esc(appQ) + '"><span class="muted small" id="acount"></span></div><div id="alist"></div>';
+      '<div class="toolbar"><input type="search" id="aq" placeholder="Search name, phone, email, ZIP…" value="' + esc(appQ) + '"><span class="muted small" id="acount"></span></div><div id="alist"></div>' +
+      '</div><aside class="hireside">' + guideHtml() + "</aside></div>";
     v.querySelectorAll(".pstage").forEach(function (b) { b.onclick = function () { appF = b.dataset.f; drawApps(); }; });
-    bindCalendar();
+    bindCalendar(); bindGuide();
     $("aq").oninput = function () { appQ = this.value; listApps(); };
     listApps();
   }

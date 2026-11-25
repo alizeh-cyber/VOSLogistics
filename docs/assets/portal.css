@@ -270,3 +270,36 @@ details.app.flash { box-shadow:0 0 0 3px rgba(47,93,30,.35); transition:box-shad
   .cdh { flex:0 0 100%; }
   .cev { width:auto; flex:1 1 180px; }
 }
+
+/* Hiring layout + interview guide */
+body.wide .wrap, body.wide .adminnav { max-width:1280px; }
+.hirelayout { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:20px; align-items:start; }
+.hireside { position:sticky; top:118px; max-height:calc(100vh - 136px); overflow-y:auto; border-radius:12px; }
+.guide { padding:0; margin:0; }
+.guide > summary { list-style:none; cursor:pointer; display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:16px 18px; border-bottom:1px solid transparent; }
+.guide > summary::-webkit-details-marker { display:none; }
+.guide > summary::after { content:"▾"; color:var(--muted); margin-left:6px; }
+.guide:not([open]) > summary::after { content:"▸"; }
+.guide[open] > summary { border-bottom-color:var(--line); }
+.gtitle { font-weight:700; font-size:16px; }
+.gbody { padding:6px 18px 18px; font-size:13.5px; line-height:1.5; }
+.gsteps { margin:0; padding:0; list-style:none; counter-reset:g; }
+.gsteps > li { counter-increment:g; position:relative; padding:12px 0 12px 34px; border-bottom:1px solid var(--line); }
+.gsteps > li:last-child { border-bottom:0; }
+.gsteps > li::before { content:counter(g); position:absolute; left:0; top:12px; width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.gsteps h4 { margin:2px 0 6px; font-size:14px; }
+.gsteps p { margin:0 0 6px; }
+.gsteps ul { margin:4px 0 0; padding-left:18px; }
+.gsteps li li { margin:3px 0; }
+.say { background:var(--accent-soft); border-left:3px solid var(--accent); padding:8px 10px; border-radius:0 8px 8px 0; font-style:italic; }
+ul.checklist { list-style:none; padding-left:0; }
+ul.checklist li::before { content:"☐"; margin-right:7px; color:var(--accent); }
+ul.qs { list-style:none; padding-left:0; }
+ul.qs li { margin:0 0 9px; }
+ul.qs li span { display:block; font-size:12px; color:var(--muted); margin-top:1px; }
+.flags { margin-top:6px; padding:10px 12px; border:1px solid #f3c2bd; background:#fdf3f2; border-radius:8px; font-size:13px; }
+.flags b { color:var(--err); } .flags ul { margin:4px 0 0; padding-left:18px; }
+@media (max-width:1000px) {
+  .hirelayout { grid-template-columns:1fr; }
+  .hireside { position:static; max-height:none; order:-1; }
+}
