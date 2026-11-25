@@ -90,3 +90,7 @@ language sql stable security definer set search_path = '' as $$
 $$;
 revoke execute on function public.admin_applicant_progress() from public, anon;
 grant execute on function public.admin_applicant_progress() to authenticated;
+
+-- ---------- Next step type: interview / training / follow-up (applied as hiring_next_step_type) ----------
+alter table public.job_applications add column next_step_type text check (next_step_type in ('interview','training','follow_up'));
+-- job_applications_log() now prefixes "Interview:" / "Training:" in the history (see live function).
