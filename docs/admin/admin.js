@@ -527,42 +527,91 @@
     for (var m = 1; m <= t.beginner_seats; m++) l.push(m === 1 ? "-t" : "-t" + m);
     return l;
   }
+  function shortName(n) { var p = String(n || "").trim().split(/\s+/); return p.length > 1 ? p[0] + " " + p[p.length - 1][0] + "." : p[0]; }
+  window.addEventListener("resize", function () { if (tab === "schedule" && $("wg") && (window.innerWidth < 760) !== !!$("wg").dataset.mobile) drawSchedule(); });
   async function drawSchedule() {
     var v = $("view");
     var startMon = mondayOf(parseDate(data.settings.schedule_start)), thisMon = mondayOf(new Date());
-    var mon = new Date(thisMon > startMon ? thisMon : startMon); mon.setDate(mon.getDate() + schedWeek * 7);
+    var homeMon = thisMon > startMon ? thisMon : startMon;
+    var mon = new Date(homeMon); mon.setDate(mon.getDate() + schedWeek * 7);
     var sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-    v.innerHTML = '<div class="toolbar"><button class="btn ghost sm" id="pw">← Previous week</button><b id="wl"></b><button class="btn ghost sm" id="nw">Next week →</button>' +
-      '<span class="muted small" id="wtot"></span></div><div class="weekgrid" id="wg"><p class="muted">Loading…</p></div>';
-    $("wl").textContent = "Week of " + MON[mon.getMonth()] + " " + mon.getDate() + " – " + MON[sun.getMonth()] + " " + sun.getDate();
+    var todayIso = iso(new Date());
+    v.innerHTML =
+      '<div class="card schedcard"><div class="schedhead">' +
+        '<div class="toolbar" style="margin:0"><button class="btn ghost sm" id="pw" aria-label="Previous week">‹</button>' +
+        '<h2 id="wl" style="margin:0;min-width:200px;text-align:center"></h2>' +
+        '<button class="btn ghost sm" id="nw" aria-label="Next week">›</button>' +
+        (schedWeek !== 0 ? '<button class="btn ghost sm" id="tw">This week</button>' : "") + "</div>" +
+        '<div class="schedstats" id="wstats"></div></div>' +
+      '<div class="schedscroll"><div id="wg"><p class="muted">Loading…</p></div></div>' +
+      '<p class="tiny" style="margin-top:10px">Tap × on a name to remove that sign-up. <span class="chip-b">B</span> = beginner spot.</p></div>' +
+      '<div class="card"><h2>Who\'s working this week</h2><div id="wwho"></div></div>';
+    $("wl").textContent = MON[mon.getMonth()] + " " + mon.getDate() + " – " + (sun.getMonth() !== mon.getMonth() ? MON[sun.getMonth()] + " " : "") + sun.getDate();
     $("pw").onclick = function () { schedWeek--; drawSchedule(); };
     $("nw").onclick = function () { schedWeek++; drawSchedule(); };
+    if ($("tw")) $("tw").onclick = function () { schedWeek = 0; drawSchedule(); };
+
     var r = await sb.rpc("schedule_between", { d1: iso(mon), d2: iso(sun) });
     if (tab !== "schedule") return;
     if (r.error) { $("wg").innerHTML = '<p class="error">Could not load the schedule.</p>'; return; }
     var by = {}; (r.data || []).forEach(function (x) { by[x.slot_id] = x; });
     var types = data.types.filter(function (t) { return t.active; });
-    var total = 0, people = {};
-    var h = "";
-    for (var i = 0; i < 7; i++) {
-      var d = new Date(mon); d.setDate(d.getDate() + i);
-      var di = iso(d), dayN = 0;
-      var inner = types.map(function (t) {
-        return '<div class="shift"><b>' + esc(t.start_label) + "</b> <span class=\"muted\">– " + esc(t.end_label) + "</span>" +
-          slotsOf(t).map(function (suf) {
-            var id = di + "-" + t.code + suf, x = by[id], tr = suf.indexOf("-t") === 0;
-            if (x) { dayN++; total++; people[x.user_id] = (people[x.user_id] || 0) + 1; }
-            return '<div class="person">' + (x ? "<span>" + (tr ? '<span class="tag">B</span>' : "") + esc(x.full_name) + '</span><button title="Remove" data-rm="' + esc(id) + '" data-name="' + esc(x.full_name) + '">×</button>'
-              : '<span class="empty">' + (tr ? "Open (beginner)" : "Open") + "</span>") + "</div>";
+    var days = []; for (var i = 0; i < 7; i++) { var d = new Date(mon); d.setDate(d.getDate() + i); days.push(d); }
+    var total = 0, open = 0, people = {}, cells = {};
+
+    var head = '<tr><th class="tcol">Shift</th>' + days.map(function (d, i) {
+      var di = iso(d), n = Object.keys(by).filter(function (k) { return k.slice(0, 10) === di; }).length;
+      var cls = (di === todayIso ? " today" : "") + (di < todayIso ? " past" : "");
+      return '<th class="dcol' + cls + '"><div class="dname">' + DAYS[i] + " " + d.getDate() + '</div><div class="dcount' + (n >= data.settings.day_cap ? " full" : "") + '">' + n + " / " + data.settings.day_cap + "</div></th>";
+    }).join("") + "</tr>";
+
+    var body = types.map(function (t) {
+      return '<tr><th class="tcol"><div class="tstart">' + esc(t.start_label) + '</div><div class="tend">to ' + esc(t.end_label) + "</div></th>" + days.map(function (d) {
+        var di = iso(d), chips = "", empty = 0, emptyB = 0;
+        slotsOf(t).forEach(function (suf) {
+          var id = di + "-" + t.code + suf, x = by[id], tr = suf.indexOf("-t") === 0;
+          if (x) {
+            total++; people[x.user_id] = people[x.user_id] || { name: x.full_name, n: 0 }; people[x.user_id].n++;
+            chips += '<span class="pchip' + (tr ? " beg" : "") + '">' + (tr ? '<span class="chip-b">B</span>' : "") + '<span class="pname" title="' + esc(x.full_name) + '">' + esc(shortName(x.full_name)) + '</span>' +
+              '<button title="Remove ' + esc(x.full_name) + '" aria-label="Remove ' + esc(x.full_name) + '" data-rm="' + esc(id) + '" data-name="' + esc(x.full_name) + '" data-when="' + esc(DAYS[(d.getDay() + 6) % 7] + " " + MON[d.getMonth()] + " " + d.getDate() + ", " + t.start_label) + '">×</button></span>';
+          } else if (tr) emptyB++; else empty++;
+        });
+        var past = di < todayIso;
+        if (!past) open += empty + emptyB;
+        var openTxt = past ? "" : [empty ? empty + " open" : "", emptyB ? emptyB + " beg." : ""].filter(Boolean).join(" · ");
+        cells[di + t.code] = { chips: chips, open: openTxt };
+        return '<td class="' + (di === todayIso ? "today" : "") + (past ? " past" : "") + '">' + chips + (openTxt ? '<div class="openslots">' + openTxt + "</div>" : "") + "</td>";
+      }).join("") + "</tr>";
+    }).join("");
+    var mobile = window.innerWidth < 760;
+    if (!mobile) {
+      $("wg").innerHTML = '<table class="schedgrid"><thead>' + head + "</thead><tbody>" + body + "</tbody></table>";
+      delete $("wg").dataset.mobile;
+    } else {
+      $("wg").dataset.mobile = "1";
+      $("wg").innerHTML = days.map(function (d, i) {
+        var di = iso(d), n = Object.keys(by).filter(function (k) { return k.slice(0, 10) === di; }).length;
+        return '<div class="sday' + (di === todayIso ? " today" : "") + (di < todayIso ? " past" : "") + '"><div class="sdayhead"><b>' + DAYS[i] + " " + MON[d.getMonth()] + " " + d.getDate() + "</b>" +
+          (di === todayIso ? ' <span class="badge green">Today</span>' : "") + '<span class="dcount' + (n >= data.settings.day_cap ? " full" : "") + '">' + n + " / " + data.settings.day_cap + "</span></div>" +
+          types.map(function (t) { var c = cells[di + t.code];
+            return '<div class="srow"><div class="stime"><b>' + esc(t.start_label) + '</b><span>to ' + esc(t.end_label) + '</span></div><div class="sppl">' + c.chips + (c.open ? '<div class="openslots">' + c.open + "</div>" : "") + "</div></div>";
           }).join("") + "</div>";
       }).join("");
-      h += '<div class="daycol"><h3>' + DAYS[i] + " " + MON[d.getMonth()] + " " + d.getDate() + ' <span class="muted small">· ' + dayN + "/" + data.settings.day_cap + "</span></h3>" + inner + "</div>";
     }
-    $("wg").innerHTML = h;
-    $("wtot").textContent = total + " sign-ups · " + Object.keys(people).length + " people";
+
+    var list = Object.keys(people).map(function (k) { return people[k]; }).sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+    $("wstats").innerHTML = '<span class="badge green">' + total + " sign-up" + (total === 1 ? "" : "s") + '</span><span class="badge">' + list.length + " people</span>" +
+      '<span class="badge' + (open ? " amber" : "") + '">' + open + " open spot" + (open === 1 ? "" : "s") + "</span>";
+    $("wwho").innerHTML = list.length
+      ? '<div class="tablewrap"><table><thead><tr><th>Name</th><th class="num">Shifts</th><th class="num">Hours</th><th>20-hr min.</th></tr></thead><tbody>' + list.map(function (p) {
+          return "<tr><td><b>" + esc(p.name) + '</b></td><td class="num">' + p.n + '</td><td class="num">' + p.n * 4 + "</td><td>" +
+            (p.n >= 5 ? '<span class="badge green">Minimum met</span>' : '<span class="badge amber">' + (5 - p.n) + " short</span>") + "</td></tr>";
+        }).join("") + "</tbody></table></div>"
+      : '<p class="muted">Nobody has signed up for this week yet.</p>';
+
     $("wg").querySelectorAll("[data-rm]").forEach(function (b) {
       b.onclick = async function () {
-        if (!confirm("Remove " + b.dataset.name + " from this shift?")) return;
+        if (!confirm("Remove " + b.dataset.name + " from " + b.dataset.when + "?")) return;
         var x = await sb.from("shift_signups").delete().eq("slot_id", b.dataset.rm).select();
         if (x.error || !x.data.length) alert("Could not remove that sign-up.");
         drawSchedule();

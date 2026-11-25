@@ -152,3 +152,40 @@ table.pay tfoot th { color:var(--ink); font-size:14px; text-transform:none; lett
 .stat .v { font-size:22px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums; }
 .stat .s { font-size:12px; color:var(--muted); }
 @media (max-width:640px) { .stats { grid-template-columns:1fr 1fr; } .stats .stat:first-child { grid-column:1 / -1; } }
+
+/* Admin schedule grid */
+.schedhead { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.schedstats { display:flex; flex-wrap:wrap; gap:6px; }
+.schedscroll { overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px; padding:0 4px; }
+table.schedgrid { border-collapse:separate; border-spacing:0; min-width:880px; table-layout:fixed; font-size:13px; }
+table.schedgrid th, table.schedgrid td { border-bottom:1px solid var(--line); border-right:1px solid var(--line); padding:8px; vertical-align:top; text-transform:none; letter-spacing:0; }
+table.schedgrid thead th { background:var(--soft); position:sticky; top:0; border-top:1px solid var(--line); }
+table.schedgrid tr > :first-child { border-left:1px solid var(--line); }
+table.schedgrid thead th:first-child { border-top-left-radius:8px; } table.schedgrid thead th:last-child { border-top-right-radius:8px; }
+table.schedgrid .tcol { width:104px; position:sticky; left:0; background:#fff; z-index:1; text-align:left; }
+table.schedgrid thead .tcol { background:var(--soft); z-index:2; color:var(--muted); font-size:12px; font-weight:600; }
+.tstart { font-weight:700; color:var(--ink); font-size:13px; } .tend { color:var(--muted); font-size:11px; font-weight:400; }
+.dcol .dname { font-weight:700; color:var(--ink); font-size:13px; }
+.dcol .dcount { font-size:11px; color:var(--muted); font-weight:500; } .dcol .dcount.full { color:var(--err); font-weight:700; }
+table.schedgrid th.today { background:var(--accent-soft); box-shadow:inset 0 3px 0 var(--accent); }
+table.schedgrid td.today { background:#fbfdf9; }
+table.schedgrid .past { opacity:.55; }
+.pchip { display:flex; align-items:center; gap:4px; background:var(--accent-soft); border:1px solid #cfe0c4; border-radius:6px; padding:3px 4px 3px 7px; margin-bottom:4px; font-size:12.5px; font-weight:500; line-height:1.3; }
+.pchip.beg { background:var(--tr-bg); border-color:var(--tr-line); }
+.pchip .pname { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pchip button { border:0; background:none; color:var(--muted); font-size:16px; line-height:1; padding:0 3px; cursor:pointer; border-radius:4px; }
+.pchip button:hover { color:#fff; background:var(--err); }
+.chip-b { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:4px; background:var(--tr); color:#fff; font-size:10px; font-weight:800; flex:0 0 auto; }
+.openslots { color:#8a929a; font-size:11.5px; padding:2px 2px 0; }
+/* Admin schedule: phone day list */
+.sday { border:1px solid var(--line); border-radius:10px; margin-bottom:10px; overflow:hidden; background:#fff; }
+.sday.today { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+.sday.past { opacity:.55; }
+.sdayhead { display:flex; align-items:center; gap:8px; padding:9px 12px; background:var(--soft); border-bottom:1px solid var(--line); }
+.sdayhead .dcount { margin-left:auto; font-size:12px; color:var(--muted); } .sdayhead .dcount.full { color:var(--err); font-weight:700; }
+.srow { display:flex; gap:10px; padding:8px 12px; border-top:1px solid var(--line); }
+.srow:first-of-type { border-top:0; }
+.stime { flex:0 0 76px; font-size:12.5px; line-height:1.3; } .stime span { display:block; color:var(--muted); font-size:11px; }
+.sppl { flex:1; min-width:0; }
+.sppl .pchip { display:inline-flex; margin:0 4px 4px 0; max-width:100%; }
+@media (max-width:640px) { .topbar .who b { display:none; } }
