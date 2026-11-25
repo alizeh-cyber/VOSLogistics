@@ -238,7 +238,6 @@
       }).join("") + "</nav>" +
       '<div id="msg" class="error" hidden></div>' +
       '<section class="pane" data-pane="schedule"><div class="card"><h2>Battery Schedule</h2>' +
-      '<p class="muted small" id="headline"></p>' +
       '<p class="small muted">Each shift is 4 hours. Advanced spots are 40 swaps. <span class="tag">BEGINNER · 25</span> spots (orange) are 25 swaps. Bring your batteries back by the time shown.</p>' +
       '<div class="tabs" id="weeks"></div><div class="tabs" id="tabs"></div><div id="slots"></div>' +
       '<p class="small muted">The 20-hour weekly minimum is 5 shifts. Shifts avoid rush hours. If you can\'t make a shift, drop it at least 24 hours ahead.</p></div></section>' +
@@ -359,7 +358,6 @@
 
     var wa = iso(dateOf(week, 0)), wb = iso(dateOf(week, 6)), mineN = 0;
     Object.keys(rows).forEach(function (k) { var kd = k.slice(0, 10); if (kd >= wa && kd <= wb && rows[k].uid === me.user_id) mineN++; });
-    $("headline").textContent = mineN + " shift" + (mineN === 1 ? "" : "s") + " booked for the selected week (" + mineN * 4 + " hrs).";
     $("sum").innerHTML = gameHtml(wa, wb);
   }
 
