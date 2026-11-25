@@ -221,21 +221,35 @@
     base = startMon > thisMon ? startMon : thisMon;
     if (startMon > thisMon) day = 0;
 
+    var TABS = [["schedule", "Schedule", "Schedule"], ["mine", "My shifts", "Shifts"], ["refer", "Refer a friend", "Refer"], ["account", "My account", "Account"]];
     app.innerHTML =
       '<div class="eyebrow">Welcome back</div><h1>' + esc(me.full_name) + "</h1>" +
-      '<p class="muted" id="headline"></p>' +
+      '<nav class="navtabs" id="navtabs" role="tablist">' + TABS.map(function (t) {
+        return '<button role="tab" data-pane="' + t[0] + '"><span class="full">' + t[1] + '</span><span class="short">' + t[2] + "</span>" + (t[0] === "mine" ? ' <span class="pill" id="mineCount">0</span>' : "") + "</button>";
+      }).join("") + "</nav>" +
       '<div id="msg" class="error" hidden></div>' +
-      '<div class="card"><h2>Shift schedule</h2>' +
+      '<section class="pane" data-pane="schedule"><div class="card"><h2>Shift schedule</h2>' +
+      '<p class="muted small" id="headline"></p>' +
       '<p class="small muted">Each shift is 4 hours. Advanced spots are 40 swaps. <span class="tag">BEGINNER · 25</span> spots (orange) are 25 swaps. Bring your batteries back by the time shown.</p>' +
       '<div class="tabs" id="weeks"></div><div class="tabs" id="tabs"></div><div id="slots"></div>' +
-      '<p class="small muted">The 20-hour weekly minimum is 5 shifts. Shifts avoid rush hours. If you can\'t make a shift, drop it at least 24 hours ahead.</p></div>' +
-      '<div class="card"><h2>My upcoming shifts</h2><div id="mine"></div><div id="sum"></div></div>' +
-      '<div class="card"><h2>Refer a friend</h2><p>Know someone dependable with a truck, van or SUV? We\'re hiring Field Operations Associates in Austin: $30–$50/hr, paid weekly, 20+ hrs/week. Send them the job link so they can apply.</p>' +
+      '<p class="small muted">The 20-hour weekly minimum is 5 shifts. Shifts avoid rush hours. If you can\'t make a shift, drop it at least 24 hours ahead.</p></div></section>' +
+      '<section class="pane" data-pane="mine"><div class="card"><h2>My upcoming shifts</h2><div id="mine"></div></div><div id="sum"></div></section>' +
+      '<section class="pane" data-pane="refer"><div class="card"><h2>Refer a friend</h2><p>Know someone dependable with a truck, van or SUV? We\'re hiring Field Operations Associates in Austin: $30–$50/hr, paid weekly, 20+ hrs/week. Send them the job link so they can apply.</p>' +
       '<div class="toolbar" style="margin:0"><button class="btn" id="shareBtn">Share job link</button><button class="btn ghost" id="copyBtn">Copy link</button><a class="btn ghost" href="' + esc(VOS.JOB_URL) + '" target="_blank" rel="noopener">View job posting</a></div>' +
-      '<div class="notice" id="shareOk"></div></div>' +
+      '<div class="notice" id="shareOk"></div>' +
+      '<p class="small muted" style="margin-top:16px">Referral discount: once you\'ve completed 200 tasks, each person you refer who completes their first 200 tasks lowers your VOS fee by $0.05 per task for 3 months. See section 3 of your agreement.</p></div></section>' +
+      '<section class="pane" data-pane="account">' + profileCard() +
       '<div class="card"><h2>My signed agreement</h2><p class="small muted">Signed ' + esc(new Date(waiver.signed_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })) + ".</p>" +
-      '<button class="btn ghost" id="dlWaiver">Download my signed copy (PDF)</button><div class="error" id="dlErr"></div></div>' +
-      profileCard();
+      '<button class="btn ghost" id="dlWaiver">Download my signed copy (PDF)</button><div class="error" id="dlErr"></div></div></section>';
+    function showPane(name) {
+      if (!TABS.some(function (t) { return t[0] === name; })) name = "schedule";
+      app.querySelectorAll(".pane").forEach(function (p) { p.hidden = p.dataset.pane !== name; });
+      $("navtabs").querySelectorAll("button").forEach(function (b) { var on = b.dataset.pane === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
+      try { localStorage.setItem("vosPortalTab", name); } catch (e) {}
+    }
+    $("navtabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { showPane(b.dataset.pane); window.scrollTo(0, 0); }; });
+    var startTab = "schedule"; try { startTab = localStorage.getItem("vosPortalTab") || "schedule"; } catch (e) {}
+    showPane(startTab);
     bindProfile();
 
     $("shareBtn").onclick = async function () {
@@ -310,6 +324,7 @@
     $("mine").innerHTML = mineList.length
       ? '<ul class="list">' + mineList.map(function (k) { return "<li><span>" + esc(slotLabel(k)) + '</span><button class="btn danger sm" data-drop="' + esc(k) + '">Drop</button></li>'; }).join("") + "</ul>"
       : '<p class="muted">No upcoming shifts yet. Pick some from the schedule above.</p>';
+    if ($("mineCount")) $("mineCount").textContent = mineList.length;
     $("mine").querySelectorAll("[data-drop]").forEach(function (b) { b.onclick = function () { drop(b.dataset.drop); }; });
 
     var wa = iso(dateOf(week, 0)), wb = iso(dateOf(week, 6)), mineN = 0;
