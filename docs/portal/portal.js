@@ -221,7 +221,7 @@
     base = startMon > thisMon ? startMon : thisMon;
     if (startMon > thisMon) day = 0;
 
-    var TABS = [["schedule", "Schedule", "Schedule"], ["mine", "My shifts", "Shifts"], ["refer", "Refer a friend", "Refer"], ["account", "My account", "Account"]];
+    var TABS = [["schedule", "Schedule", "Schedule"], ["mine", "My shifts", "Shifts"], ["earnings", "Earnings", "Pay"], ["refer", "Refer a friend", "Refer"], ["account", "My account", "Account"]];
     app.innerHTML =
       '<div class="eyebrow">Welcome back</div><h1>' + esc(me.full_name) + "</h1>" +
       '<nav class="navtabs" id="navtabs" role="tablist">' + TABS.map(function (t) {
@@ -234,6 +234,7 @@
       '<div class="tabs" id="weeks"></div><div class="tabs" id="tabs"></div><div id="slots"></div>' +
       '<p class="small muted">The 20-hour weekly minimum is 5 shifts. Shifts avoid rush hours. If you can\'t make a shift, drop it at least 24 hours ahead.</p></div></section>' +
       '<section class="pane" data-pane="mine"><div class="card"><h2>My upcoming shifts</h2><div id="mine"></div></div><div id="sum"></div></section>' +
+      '<section class="pane" data-pane="earnings"><div id="earnBox"><p class="muted">Loading…</p></div></section>' +
       '<section class="pane" data-pane="refer"><div class="card"><h2>Refer a friend</h2><p>Know someone dependable with a truck, van or SUV? We\'re hiring Field Operations Associates in Austin: $30–$50/hr, paid weekly, 20+ hrs/week. Send them the job link so they can apply.</p>' +
       '<div class="toolbar" style="margin:0"><button class="btn" id="shareBtn">Share job link</button><button class="btn ghost" id="copyBtn">Copy link</button><a class="btn ghost" href="' + esc(VOS.JOB_URL) + '" target="_blank" rel="noopener">View job posting</a></div>' +
       '<div class="notice" id="shareOk"></div>' +
@@ -242,6 +243,7 @@
       '<div class="card"><h2>My signed agreement</h2><p class="small muted">Signed ' + esc(new Date(waiver.signed_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })) + ".</p>" +
       '<button class="btn ghost" id="dlWaiver">Download my signed copy (PDF)</button><div class="error" id="dlErr"></div></div></section>';
     function showPane(name) {
+      if (name === "earnings") loadEarnings();
       if (!TABS.some(function (t) { return t[0] === name; })) name = "schedule";
       app.querySelectorAll(".pane").forEach(function (p) { p.hidden = p.dataset.pane !== name; });
       $("navtabs").querySelectorAll("button").forEach(function (b) { var on = b.dataset.pane === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
@@ -275,6 +277,25 @@
     stopLive();
     live = sb.channel("shift-signups-live").on("postgres_changes", { event: "*", schema: "public", table: "shift_signups" }, function () { loadSchedule(); }).subscribe();
     timer = setInterval(loadSchedule, 60000);
+  }
+
+  async function loadEarnings() {
+    var box = $("earnBox"); if (!box) return;
+    var r = await sb.rpc("my_earnings");
+    if (r.error) { box.innerHTML = '<div class="card warn">Could not load your earnings. Please refresh.</div>'; return; }
+    var rows = r.data || [];
+    if (!rows.length) { box.innerHTML = '<div class="card"><h2>Earnings</h2><p class="muted">Your weekly earnings show up here after VOS adds each week\'s report from Lime, usually early the following week.</p></div>'; return; }
+    var money = function (n) { return "$" + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","); };
+    var now = new Date(), ym = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"), y = String(now.getFullYear());
+    var sum = function (f) { return rows.filter(f).reduce(function (a, x) { return a + Number(x.actual_pay); }, 0); };
+    var lbl = function (a, b) { var x = parseDate(a), z = parseDate(b); return MON[x.getMonth()] + " " + x.getDate() + " – " + (z.getMonth() !== x.getMonth() ? MON[z.getMonth()] + " " : "") + z.getDate(); };
+    box.innerHTML = '<div class="stats">' +
+      '<div class="stat"><div class="k">Latest week</div><div class="v">' + money(rows[0].actual_pay) + '</div><div class="s">' + lbl(rows[0].week_start, rows[0].week_end) + " · " + rows[0].tasks + " tasks</div></div>" +
+      '<div class="stat"><div class="k">This month</div><div class="v">' + money(sum(function (x) { return x.week_start.slice(0, 7) === ym; })) + "</div></div>" +
+      '<div class="stat"><div class="k">This year</div><div class="v">' + money(sum(function (x) { return x.week_start.slice(0, 4) === y; })) + "</div></div></div>" +
+      '<div class="card"><h2>Weekly earnings</h2><div class="tablewrap"><table><thead><tr><th>Week</th><th class="num">Tasks</th><th class="num">Pay</th></tr></thead><tbody>' +
+      rows.map(function (x) { return "<tr><td>" + lbl(x.week_start, x.week_end) + ", " + x.week_end.slice(0, 4) + '</td><td class="num">' + x.tasks + '</td><td class="num"><b>' + money(x.actual_pay) + "</b></td></tr>"; }).join("") +
+      '</tbody></table></div><p class="small muted" style="margin-top:12px">Weeks run Monday to Sunday. Pay is what VOS pays you for the week after its service fee and any bonus. Questions? Text your VOS lead.</p></div>';
   }
 
   function render() {

@@ -64,7 +64,8 @@
     ]);
     var admins = (r[5].data || []).map(function (x) { return x.user_id; });
     data.apps = r[0].data || [];
-    data.assoc = (r[1].data || []).filter(function (a) { return admins.indexOf(a.user_id) < 0; });
+    data.admins = admins;
+    data.assoc = (r[1].data || []).filter(function (a) { return !(admins.indexOf(a.user_id) >= 0 && a.status === "pending"); });
     data.waivers = r[2].data || [];
     data.types = r[3].data || [];
     data.settings = r[4].data;
@@ -79,12 +80,12 @@
   function draw() {
     var pending = data.assoc.filter(function (a) { return a.status === "pending"; }).length;
     var newApps = data.apps.filter(function (a) { return a.status === "new"; }).length;
-    var tabs = [["apps", "Job applications", newApps], ["roster", "Associates", pending], ["team", "Team list", 0], ["schedule", "Schedule", 0], ["waivers", "Waivers", 0], ["settings", "Shift settings", 0]];
+    var tabs = [["apps", "Job applications", newApps], ["roster", "Associates", pending], ["team", "Team list", 0], ["payroll", "Payroll", 0], ["referrals", "Referrals", 0], ["schedule", "Schedule", 0], ["waivers", "Waivers", 0], ["settings", "Shift settings", 0]];
     $("mainTabs").innerHTML = tabs.map(function (t) {
       return '<button class="tab' + (tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '">' + t[1] + (t[2] ? '<span class="count">' + t[2] + "</span>" : "") + "</button>";
     }).join("");
     $("mainTabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { tab = b.dataset.t; try { localStorage.setItem("vosAdminTab", tab); } catch (e) {} draw(); }; });
-    ({ apps: drawApps, roster: drawRoster, team: drawTeam, schedule: drawSchedule, waivers: drawWaivers, settings: drawSettings })[tab]();
+    ({ apps: drawApps, roster: drawRoster, team: drawTeam, payroll: drawPayroll, referrals: drawReferrals, schedule: drawSchedule, waivers: drawWaivers, settings: drawSettings })[tab]();
   }
 
   // ---------- Job applications ----------
@@ -184,9 +185,25 @@
           "<td>" + (w ? (w.pay_plan === a.pay_plan ? '<span class="badge green">Yes</span>' : '<span class="badge amber" title="Signed under a different pay plan">Needs to re-sign</span>') : '<span class="badge amber">No</span>') + "</td><td>" + (w ? fmtDate(w.signed_at) : "—") + "</td>" +
           "<td>" + badge(ASSOC_STATUS, a.status) + "</td><td>" +
           (a.status === "approved" ? '<button class="btn danger sm" data-revoke="' + a.user_id + '">Remove access</button>' : '<button class="btn ghost sm" data-reapprove="' + a.user_id + '">Approve</button>') +
-          ' <button class="btn ghost sm" data-pw="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Set password</button></td></tr>';
+          ' <button class="btn ghost sm" data-pw="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Set password</button>' +
+          (data.admins.indexOf(a.user_id) >= 0
+            ? ' <span class="badge blue">Admin</span> <button class="btn ghost sm" data-unadmin="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Remove admin</button>'
+            : (a.status === "approved" ? ' <button class="btn ghost sm" data-mkadmin="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Make admin</button>' : "")) +
+          "</td></tr>";
       }).join("") + "</tbody></table>";
     $("rtable").querySelectorAll("[data-revoke]").forEach(function (b) { b.onclick = function () { if (confirm("Remove this associate's access to the schedule? Their existing sign-ups stay until you remove them.")) setStatus(b.dataset.revoke, "declined"); }; });
+    $("rtable").querySelectorAll("[data-mkadmin],[data-unadmin]").forEach(function (b) {
+      b.onclick = async function () {
+        var make = !!b.dataset.mkadmin, uid = b.dataset.mkadmin || b.dataset.unadmin;
+        var msg = make
+          ? "Make " + b.dataset.n + " an admin?\n\nThey'll see everything in /admin: applications, associates, pay plans, payroll, referrals and waivers. Only do this if you're sure this account really belongs to them."
+          : "Remove admin access from " + b.dataset.n + "?";
+        if (!confirm(msg)) return;
+        var r = await sb.rpc("admin_set_admin", { target: uid, make: make });
+        if (r.error) { alert(/self/.test(r.error.message) ? "You can't remove your own admin access." : "Could not change admin access."); return; }
+        await loadAll(); draw();
+      };
+    });
     $("rtable").querySelectorAll("[data-pw]").forEach(function (b) {
       b.onclick = async function () {
         var words = ["Battery", "Scooter", "Charger", "Volt", "Lime", "Austin"];
@@ -275,6 +292,184 @@
         var r = await sb.from("roster_invites").delete().eq("email", b.dataset.del);
         if (r.error) { alert("Could not remove."); return; }
         await loadAll(); teamTable();
+      };
+    });
+  }
+
+  // ---------- People (team list + portal accounts) ----------
+  async function loadPeople() {
+    var r = await sb.rpc("admin_people");
+    data.people = r.data || [];
+    return data.people;
+  }
+  function personName(email) { var p = (data.people || []).filter(function (x) { return x.email === email; })[0]; return p ? p.full_name : email; }
+  function peopleOptions(sel, blank) {
+    return (blank ? '<option value="">' + esc(blank) + "</option>" : "") + (data.people || []).map(function (p) {
+      return '<option value="' + esc(p.email) + '"' + (p.email === sel ? " selected" : "") + ">" + esc(p.full_name) + " (" + esc(p.email) + ")</option>";
+    }).join("");
+  }
+  function money(n) { return (n < 0 ? "−$" : "$") + Math.abs(Number(n || 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  function weekLabel(a, b) { var x = parseDate(a), y = parseDate(b); return MON[x.getMonth()] + " " + x.getDate() + " – " + (y.getMonth() !== x.getMonth() ? MON[y.getMonth()] + " " : "") + y.getDate() + ", " + y.getFullYear(); }
+
+  // ---------- Payroll ----------
+  var payWeek = null;
+  async function drawPayroll() {
+    var v = $("view");
+    v.innerHTML = '<div class="card"><h2>Upload Lime weekly report</h2>' +
+      '<p class="small muted">Choose the "Logistics Provider Weekly Report" PDF from Lime. Everyone in it gets that week added to their Earnings tab. Rent is worked out from each person\'s pay plan, their task count and active referrals. Uploading the same week again updates it; bonuses and manual rent changes are kept.</p>' +
+      '<div class="toolbar" style="margin:0"><input type="file" id="limePdf" accept="application/pdf,.pdf" style="max-width:100%"><span class="small muted" id="upMsg"></span></div>' +
+      '<div id="mapBox"></div><div class="error" id="upErr"></div></div>' +
+      '<div class="card"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Weekly payroll</h2><select id="weekSel" style="width:auto"></select></div><div id="payBox"><p class="muted">Loading…</p></div></div>';
+    var peopleReady = loadPeople();
+    $("limePdf").onchange = async function () { var f = this.files[0]; if (!f) return; await peopleReady; handleUpload(f); };
+    await peopleReady;
+    await loadWeeks();
+  }
+  async function loadWeeks() {
+    var r = await sb.from("payroll_weeks").select("*").order("week_start", { ascending: false });
+    var weeks = r.data || [];
+    if (!weeks.length) { $("weekSel").innerHTML = ""; $("payBox").innerHTML = '<p class="muted">No weeks yet. Upload a Lime weekly report above.</p>'; return; }
+    if (!payWeek || !weeks.some(function (w) { return w.week_start === payWeek; })) payWeek = weeks[0].week_start;
+    $("weekSel").innerHTML = weeks.map(function (w) { return '<option value="' + w.week_start + '"' + (w.week_start === payWeek ? " selected" : "") + ">" + weekLabel(w.week_start, w.week_end) + "</option>"; }).join("");
+    $("weekSel").onchange = function () { payWeek = this.value; drawWeek(weeks.filter(function (w) { return w.week_start === payWeek; })[0]); };
+    drawWeek(weeks.filter(function (w) { return w.week_start === payWeek; })[0]);
+  }
+  async function drawWeek(w) {
+    var r = await sb.from("payroll_entries").select("*").eq("week_start", w.week_start);
+    var rows = (r.data || []).sort(function (a, b) { return personName(a.email).localeCompare(personName(b.email)); });
+    var T = { tasks: 0, gross: 0, rent: 0, bonus: 0, pay: 0 };
+    rows.forEach(function (e) { T.tasks += e.tasks; T.gross += +e.gross; T.rent += +e.rent_total; T.bonus += +e.bonus; T.pay += +e.actual_pay; });
+    var h = '<p class="small muted">Uploaded ' + esc(fmtDateTime(w.uploaded_at)) + (w.source_file ? " from " + esc(w.source_file) : "") + ". Edit rent or bonus in a box and press Enter or click away; earnings update right away.</p>" +
+      '<div class="tablewrap"><table class="pay"><thead><tr><th>Name</th><th>Lime name</th><th class="num">Tasks</th><th class="num">Gross pay</th><th class="num">Rent / task</th><th class="num">Rent total</th><th class="num">Bonus</th><th class="num">Actual pay</th></tr></thead><tbody>' +
+      rows.map(function (e) {
+        var why = e.fee_override ? "Set by hand" : (planLabel(e.plan) + (e.referrals ? " − " + e.referrals + " referral" + (e.referrals > 1 ? "s" : "") : ""));
+        return '<tr><td><b>' + esc(personName(e.email)) + '</b></td><td class="small muted">' + esc(e.lime_name) + '</td><td class="num">' + e.tasks + '</td><td class="num">' + money(e.gross) + "</td>" +
+          '<td class="num"><input class="cell" type="number" step="0.01" min="0" data-fee="' + esc(e.lime_name) + '" value="' + Number(e.fee_per_task).toFixed(2) + '"><div class="tiny">' + esc(why) +
+          (e.fee_override ? ' · <button class="link tiny" data-auto="' + esc(e.lime_name) + '">use automatic</button>' : "") + "</div></td>" +
+          '<td class="num">' + money(e.rent_total) + '</td><td class="num"><input class="cell" type="number" step="0.01" data-bonus="' + esc(e.lime_name) + '" value="' + Number(e.bonus).toFixed(2) + '"></td>' +
+          '<td class="num"><b>' + money(e.actual_pay) + "</b></td></tr>";
+      }).join("") +
+      '</tbody><tfoot><tr><th>Total (' + rows.length + ' people)</th><th></th><th class="num">' + T.tasks + '</th><th class="num">' + money(T.gross) + '</th><th></th><th class="num">' + money(T.rent) + '</th><th class="num">' + money(T.bonus) + '</th><th class="num">' + money(T.pay) + "</th></tr></tfoot></table></div>" +
+      '<p class="small" style="margin-top:12px"><b>VOS keeps (rent total): ' + money(T.rent) + "</b>" + (w.lime_fee != null ? ' · Lime report total: ' + (w.lime_tasks || 0) + " tasks, " + money(w.lime_fee) : "") + "</p>" +
+      '<div class="toolbar" style="margin:12px 0 0"><button class="btn ghost sm" id="recalc">Recalculate rent</button><button class="btn ghost sm" id="csv">Download for Excel (CSV)</button><button class="btn danger sm" id="delWeek">Delete this week</button></div>';
+    $("payBox").innerHTML = h;
+    async function save(lime, upd) {
+      upd.updated_at = new Date().toISOString();
+      var x = await sb.from("payroll_entries").update(upd).eq("week_start", w.week_start).eq("lime_name", lime);
+      if (x.error) alert("Could not save: " + x.error.message);
+      drawWeek(w);
+    }
+    $("payBox").querySelectorAll("[data-fee]").forEach(function (i) { i.onchange = function () { save(i.dataset.fee, { fee_per_task: Math.max(0, +i.value || 0), fee_override: true }); }; });
+    $("payBox").querySelectorAll("[data-bonus]").forEach(function (i) { i.onchange = function () { save(i.dataset.bonus, { bonus: +i.value || 0 }); }; });
+    $("payBox").querySelectorAll("[data-auto]").forEach(function (b) { b.onclick = async function () {
+      await sb.from("payroll_entries").update({ fee_override: false }).eq("week_start", w.week_start).eq("lime_name", b.dataset.auto);
+      await sb.rpc("payroll_recalc", { p_start: w.week_start }); drawWeek(w);
+    }; });
+    $("recalc").onclick = async function () { var x = await sb.rpc("payroll_recalc", { p_start: w.week_start }); if (x.error) alert("Could not recalculate."); drawWeek(w); };
+    $("delWeek").onclick = async function () {
+      if (!confirm("Delete the week of " + weekLabel(w.week_start, w.week_end) + "? It disappears from everyone's Earnings tab. You can upload the Lime report again to bring it back (bonuses would need re-entering).")) return;
+      var x = await sb.from("payroll_weeks").delete().eq("week_start", w.week_start);
+      if (x.error) { alert("Could not delete."); return; }
+      payWeek = null; loadWeeks();
+    };
+    $("csv").onclick = function () {
+      var q = function (s) { s = String(s == null ? "" : s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+      var lines = [["Name", "Lime name", "Tasks", "Gross Pay", "Rent", "Rent Total", "Bonus", "Actual Pay"]].concat(rows.map(function (e) {
+        return [personName(e.email), e.lime_name, e.tasks, Number(e.gross).toFixed(2), Number(e.fee_per_task).toFixed(2), Number(e.rent_total).toFixed(2), Number(e.bonus).toFixed(2), Number(e.actual_pay).toFixed(2)];
+      })).concat([["Total", "", T.tasks, T.gross.toFixed(2), "", T.rent.toFixed(2), T.bonus.toFixed(2), T.pay.toFixed(2)]]);
+      var blob = new Blob([lines.map(function (l) { return l.map(q).join(","); }).join("\n")], { type: "text/csv" });
+      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "VOS_payroll_" + w.week_start + "_to_" + w.week_end + ".csv"; a.click();
+    };
+  }
+  async function handleUpload(file) {
+    var err = $("upErr"), msg = $("upMsg"); err.textContent = ""; $("mapBox").innerHTML = ""; msg.textContent = "Reading the report…";
+    var rep;
+    try { rep = await window.parseLimeReport(new Uint8Array(await file.arrayBuffer())); }
+    catch (e) { console.error(e); msg.textContent = ""; err.textContent = "Couldn't read that PDF: " + (e.message || e); return; }
+    var sumT = rep.rows.reduce(function (a, x) { return a + x.tasks; }, 0), sumG = Math.round(rep.rows.reduce(function (a, x) { return a + x.gross; }, 0) * 100) / 100;
+    var check = rep.totalTasks == null || (sumT === rep.totalTasks && Math.abs(sumG - rep.totalFee) < 0.01);
+    msg.textContent = "Week " + weekLabel(rep.weekStart, rep.weekEnd) + ": " + rep.rows.length + " people, " + sumT + " tasks, " + money(sumG) + (check ? " ✓ matches the report total" : "");
+    if (!check) { err.textContent = "The rows don't add up to the report total (" + rep.totalTasks + " tasks, " + money(rep.totalFee) + "). Please check the PDF or send it to your developer."; return; }
+    var known = await sb.from("lime_names").select("*");
+    var map = {}; (known.data || []).forEach(function (k) { map[k.lime_name] = k.email; });
+    var unknown = rep.rows.filter(function (x) { return !map[x.limeName]; });
+    if (!unknown.length) return doImport(rep, file.name);
+    function guess(n) {
+      var first = n.toLowerCase().split(" ")[0];
+      var m = (data.people || []).filter(function (p) { var f = p.full_name.toLowerCase().split(" ")[0]; return f === first || (first.length >= 3 && (f.indexOf(first) === 0 || first.indexOf(f) === 0)); });
+      return m.length === 1 ? m[0].email : "";
+    }
+    $("mapBox").innerHTML = '<div class="card warn" style="margin-top:14px"><h3>Who is who? (only needed once per name)</h3><p class="small">These Lime names are new. Pick the person each one belongs to. Next time they\'ll be matched automatically.</p>' +
+      unknown.map(function (x) { return '<div class="row" style="align-items:center;margin-top:8px"><div style="flex:0 0 140px"><b>' + esc(x.limeName) + '</b><div class="tiny">' + x.tasks + " tasks</div></div><div><select data-map=\"" + esc(x.limeName) + '">' + peopleOptions(guess(x.limeName), "Choose a person…") + "</select></div></div>"; }).join("") +
+      '<button class="btn" style="margin-top:14px" id="mapGo">Save and add the week</button></div>';
+    $("mapGo").onclick = async function () {
+      var picks = [], missing = [];
+      $("mapBox").querySelectorAll("select[data-map]").forEach(function (s) { if (!s.value) missing.push(s.dataset.map); else picks.push({ lime_name: s.dataset.map, email: s.value, updated_at: new Date().toISOString() }); });
+      if (missing.length) { err.textContent = "Please choose a person for: " + missing.join(", "); return; }
+      var x = await sb.from("lime_names").upsert(picks);
+      if (x.error) { err.textContent = "Could not save: " + x.error.message; return; }
+      $("mapBox").innerHTML = ""; doImport(rep, file.name);
+    };
+  }
+  async function doImport(rep, fileName) {
+    var err = $("upErr");
+    var r = await sb.rpc("payroll_import", { p_start: rep.weekStart, p_end: rep.weekEnd, p_rows: rep.rows, p_file: fileName, p_lime_tasks: rep.totalTasks, p_lime_fee: rep.totalFee });
+    if (r.error) { err.textContent = "Could not add the week: " + r.error.message; return; }
+    $("upMsg").textContent = "Added: week " + weekLabel(rep.weekStart, rep.weekEnd) + " for " + r.data.length + " people. Their Earnings tabs are updated.";
+    $("limePdf").value = ""; payWeek = rep.weekStart; loadWeeks();
+  }
+
+  // ---------- Referrals ----------
+  async function drawReferrals() {
+    var v = $("view");
+    v.innerHTML = '<div class="card"><h2>Add a referral</h2><p class="small muted">Add it once both people have hit 200 tasks (see section 3 of the agreement). The referrer\'s rent drops $0.05 per task for 3 months from that date. Referrals add up.</p>' +
+      '<form id="refForm" novalidate><div class="row"><div><label for="refBy">Who referred</label><select id="refBy"></select></div>' +
+      '<div><label for="refWho">Who they referred</label><input type="text" id="refWho" list="peopleNames" placeholder="Name"><datalist id="peopleNames"></datalist></div>' +
+      '<div style="flex:0 0 180px"><label for="refDate">Discount starts</label><input type="date" id="refDate"></div></div>' +
+      '<button class="btn" style="margin-top:16px">Add referral</button><div class="error" id="refErr"></div></form></div>' +
+      '<div class="card"><h2>Referral discounts</h2><div class="tablewrap" id="refList"><p class="muted">Loading…</p></div></div>';
+    await loadPeople();
+    $("refBy").innerHTML = peopleOptions("", "Choose a person…");
+    $("peopleNames").innerHTML = (data.people || []).map(function (p) { return '<option value="' + esc(p.full_name) + '">'; }).join("");
+    $("refDate").value = iso(new Date());
+    $("refForm").onsubmit = async function (e) {
+      e.preventDefault();
+      var err = $("refErr"); err.className = "error"; err.textContent = "";
+      var row = { referrer_email: $("refBy").value, referred_name: $("refWho").value.trim(), starts_on: $("refDate").value, ends_on: $("refDate").value };
+      if (!row.referrer_email) { err.textContent = "Choose who made the referral."; return; }
+      if (!row.referred_name) { err.textContent = "Enter who they referred."; return; }
+      if (!row.starts_on) { err.textContent = "Choose the start date."; return; }
+      var r = await sb.from("referrals").insert(row).select().single();
+      if (r.error) { err.textContent = "Could not add: " + r.error.message; return; }
+      await recalcWeeksBetween(r.data.starts_on, r.data.ends_on);
+      $("refWho").value = ""; err.className = "notice"; err.textContent = "Added. " + personName(row.referrer_email) + "'s rent is lowered until " + fmtDate(r.data.ends_on + "T12:00:00") + ".";
+      await loadPeople(); listReferrals();
+    };
+    listReferrals();
+  }
+  async function recalcWeeksBetween(a, b) {
+    var w = await sb.from("payroll_weeks").select("week_start").gte("week_start", a).lt("week_start", b);
+    for (var i = 0; i < (w.data || []).length; i++) await sb.rpc("payroll_recalc", { p_start: w.data[i].week_start });
+  }
+  async function listReferrals() {
+    var r = await sb.from("referrals").select("*").order("starts_on", { ascending: false });
+    var refs = r.data || [], today = iso(new Date());
+    var summary = (data.people || []).filter(function (p) { return p.referrals > 0; }).map(function (p) {
+      return '<li><span><b>' + esc(p.full_name) + "</b> · " + p.referrals + " active referral" + (p.referrals > 1 ? "s" : "") + '</span><span class="small">' + esc(planLabel(p.plan)) + " → <b>$" + Number(p.fee_now).toFixed(2) + " per task</b> now</span></li>";
+    }).join("");
+    $("refList").innerHTML = (summary ? '<ul class="list" style="margin-bottom:16px">' + summary + "</ul>" : "") +
+      (refs.length ? "<table><thead><tr><th>Referrer</th><th>Referred</th><th>Starts</th><th>Ends</th><th>Status</th><th></th></tr></thead><tbody>" + refs.map(function (x) {
+        var on = x.starts_on <= today && x.ends_on > today, future = x.starts_on > today;
+        return "<tr><td><b>" + esc(personName(x.referrer_email)) + "</b></td><td>" + esc(x.referred_name) + "</td><td>" + fmtDate(x.starts_on + "T12:00:00") + "</td><td>" + fmtDate(x.ends_on + "T12:00:00") + "</td><td>" +
+          (on ? '<span class="badge green">Active</span>' : future ? '<span class="badge blue">Starts later</span>' : '<span class="badge">Ended</span>') +
+          '</td><td><button class="btn danger sm" data-delref="' + x.id + '" data-a="' + x.starts_on + '" data-b="' + x.ends_on + '">Delete</button></td></tr>';
+      }).join("") + "</tbody></table>" : '<p class="muted">No referrals yet.</p>');
+    $("refList").querySelectorAll("[data-delref]").forEach(function (b) {
+      b.onclick = async function () {
+        if (!confirm("Delete this referral? The referrer's rent goes back up for any weeks it covered.")) return;
+        var x = await sb.from("referrals").delete().eq("id", b.dataset.delref);
+        if (x.error) { alert("Could not delete."); return; }
+        await recalcWeeksBetween(b.dataset.a, b.dataset.b); await loadPeople(); listReferrals();
       };
     });
   }
