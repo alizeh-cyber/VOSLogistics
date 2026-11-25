@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Battery Shift Sign-Up</title>
+<style>
+:root{--bg:#f6f7f5;--card:#fff;--text:#1b1f1c;--muted:#667068;--line:#dfe3de;--accent:#2f7d4f;--accent-text:#fff;--taken:#eef1ed;--danger:#b3372f;--tr:#b45309;--tr-text:#fff;--tr-bg:#fdf1dc;--tr-line:#e3b15f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141714;--card:#1e221f;--text:#eef1ed;--muted:#9aa49c;--line:#323833;--accent:#4fb072;--accent-text:#0d1a11;--taken:#262b27;--danger:#e0675f;--tr:#f0b45a;--tr-text:#1f1606;--tr-bg:#2b2416;--tr-line:#6b5426;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141714;--card:#1e221f;--text:#eef1ed;--muted:#9aa49c;--line:#323833;--accent:#4fb072;--accent-text:#0d1a11;--taken:#262b27;--danger:#e0675f;--tr:#f0b45a;--tr-text:#1f1606;--tr-bg:#2b2416;--tr-line:#6b5426;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:1.35rem;margin:4px 0 2px}
+.sub{color:var(--muted);font-size:.9rem;margin:0 0 14px}
+input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font:inherit;margin-bottom:12px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px}
+.tab{flex:0 0 auto;padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--text);font:inherit;cursor:pointer}
+.tab.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.slot{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.time{font-weight:600}
+.back{color:var(--muted);font-size:.9rem;margin:0 0 8px}
+.how{color:var(--muted);font-size:.82rem;margin:0 0 8px}
+.seat{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border-radius:10px;background:var(--taken);min-height:46px}
+.seat.open{background:transparent;border:1px dashed var(--line)}
+.seat+.seat{margin-top:6px}
+button.act{padding:8px 14px;border-radius:9px;border:0;background:var(--accent);color:var(--accent-text);font:inherit;font-weight:600;cursor:pointer}
+button.drop{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+.sum{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:14px 0 0}
+.note{color:var(--muted);font-size:.85rem;margin-top:10px}
+.err{color:var(--danger);font-size:.9rem;margin:6px 0}
+.seat.trainee{background:var(--tr-bg);border:1px solid var(--tr-line)}
+.seat.trainee.open{background:transparent;border:1px dashed var(--tr)}
+.tag{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.03em;padding:2px 7px;border-radius:999px;background:var(--tr);color:var(--tr-text);margin-right:8px;vertical-align:middle}
+button.act.tr{background:var(--tr);color:var(--tr-text)}
+
+.game{display:grid;gap:10px;margin:14px 0 0}
+.gcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.gh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+.gh b{font-size:1rem}.gh span{color:var(--muted);font-size:.8rem}
+.bar{height:12px;border-radius:999px;background:var(--taken);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .5s}
+.bar.or i{background:var(--tr)}
+.cells{display:flex;gap:6px;margin-top:2px}
+.cell{flex:1;height:34px;border-radius:9px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;font-size:1.1rem;filter:grayscale(1);opacity:.45}
+.cell.on{border:1px solid var(--accent);background:var(--taken);filter:none;opacity:1}
+.lvl{font-size:1.15rem;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:.78rem;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:var(--taken)}
+.chip.off{opacity:.4;filter:grayscale(1)}
+.lb{display:grid;grid-template-columns:26px 1fr auto;gap:4px 8px;font-size:.92rem;align-items:center}
+.lb .me{font-weight:700;color:var(--accent)}
+.fine{color:var(--muted);font-size:.74rem;margin-top:8px}
+.pop{position:fixed;left:50%;top:38%;transform:translate(-50%,0);font-size:1.6rem;font-weight:800;color:var(--accent);pointer-events:none;z-index:9;animation:up 1.3s ease-out forwards;text-shadow:0 2px 12px rgba(0,0,0,.25)}
+.bit{position:fixed;font-size:1.3rem;pointer-events:none;z-index:9;animation:fly 1.1s ease-out forwards}
+@keyframes up{to{transform:translate(-50%,-70px);opacity:0}}
+@keyframes fly{to{transform:translate(var(--dx),var(--dy)) rotate(260deg);opacity:0}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<main>
+<h1>Battery Shift Sign-Up</h1>
+<p class="sub">Each shift is 4 hours. Advanced spots are 40 swaps. <span class="tag">BEGINNER · 25</span> spots (orange) are 25 swaps. Bring your batteries back by the time shown.</p>
+<input id="name" placeholder="Your name" maxlength="40" autocomplete="name">
+<div id="msg" class="err" hidden></div>
+<div class="tabs" id="weeks"></div>
+<div class="tabs" id="tabs"></div>
+<div id="slots"></div>
+<div class="sum" id="sum"></div>
+<p class="note">The 20-hour weekly minimum is 5 shifts. Shifts avoid rush hours.</p>
+</main>
+<script>
+/* ===== 1. PASTE YOUR SUPABASE VALUES HERE ===== */
+var SUPABASE_URL="https://xzlnzldolzqlhbqfgjeh.supabase.co";
+var SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6bG56bGRvbHpxbGhicWZnamVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyNTE0OTcsImV4cCI6MjEwOTgyNzQ5N30.2ei4JjUUBFjhEz86rTYKoGFfMlB-hxzO9XKZ-c0AdsQ";
+
+/* ===== 2. SHIFT TIMES: edit this list to change the schedule ===== */
+var SLOTS=[
+ {k:"0000",t:"12:00 AM",e:"4:00 AM",seats:2,trainee:1},
+ {k:"0400",t:"4:00 AM",e:"8:00 AM",seats:2},
+ {k:"0915",t:"9:15 AM",e:"1:15 PM",seats:1},
+ {k:"1215",t:"12:15 PM",e:"4:15 PM",seats:1},
+ {k:"1915",t:"7:15 PM",e:"11:15 PM",seats:2,trainee:1}
+];
+var DAY_CAP=9; /* must match the number in the database trigger */
+var HOWTO="Start: take your charged batteries (40 on advanced spots, 25 on orange beginner spots). End: pull any finished batteries out of the chargers, then load your dead ones into open ports. Put extras on the rack and load the longest-waiting first.";
+
+/* ===== 3. STORAGE (Supabase) ===== */
+var Store={uid:null,owner:false,sb:null,
+ async init(){
+  this.sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  var s=await this.sb.auth.getSession();
+  if(s.data&&s.data.session){this.uid=s.data.session.user.id}
+  else{var r=await this.sb.auth.signInAnonymously();if(r.error)return false;this.uid=r.data.user.id}
+  return true},
+ async subscribe(ok,fail){
+  var sb=this.sb;
+  async function load(){var r=await sb.from("signups").select("slot_id,name,user_id");if(r.error){fail();return}
+   var o={};r.data.forEach(function(x){o[x.slot_id]={name:x.name,uid:x.user_id}});ok(o)}
+  await load();
+  sb.channel("signups-live").on("postgres_changes",{event:"*",schema:"public",table:"signups"},load).subscribe();
+  setInterval(load,60000)},
+ async claim(id,name){
+  var r=await this.sb.from("signups").insert({slot_id:id,name:name});
+  if(!r.error)return "ok";
+  if(r.error.code==="23505")return "taken";
+  if(/day_full/.test(r.error.message||""))return "full";
+  if(/bad_slot/.test(r.error.message||""))return "bad";
+  throw r.error},
+ async release(id){var r=await this.sb.from("signups").delete().eq("slot_id",id);if(r.error)throw r.error}
+};
+
+var DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var day=(new Date().getDay()+6)%7,week=0,rows={},canWrite=true;
+var $=function(i){return document.getElementById(i)};
+var nameEl=$("name");
+try{var sv=localStorage.getItem("shiftName");if(sv)nameEl.value=sv}catch(e){}
+nameEl.addEventListener("input",function(){try{localStorage.setItem("shiftName",nameEl.value)}catch(e){}render()});
+
+function dateOf(w,i){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7)+w*7+i);return d}
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function key(w,d,s){return iso(dateOf(w,d))+"-"+s.k}
+function isPast(w,d,s){var t=dateOf(w,d);t.setHours(+s.k.slice(0,2),+s.k.slice(2),0,0);return t<new Date()}
+function dayCount(prefix){return Object.keys(rows).filter(function(k){return k.slice(0,10)===prefix}).length}
+function showMsg(t){var m=$("msg");m.textContent=t;m.hidden=!t}
+
+function render(){
+  var wl=["This week","Next week","In 2 weeks"].map(function(l,i){var a=dateOf(i,0),z=dateOf(i,6);return l+" ("+MON[a.getMonth()]+" "+a.getDate()+"–"+(z.getMonth()!==a.getMonth()?MON[z.getMonth()]+" ":"")+z.getDate()+")"}),wh="";
+  wl.forEach(function(l,i){wh+='<button class="tab'+(i===week?' on':'')+'" data-w="'+i+'">'+l+'</button>'});
+  $("weeks").innerHTML=wh;
+  Array.prototype.forEach.call($("weeks").children,function(b){b.onclick=function(){week=+b.dataset.w;render()}});
+  var h="";
+  DAYS.forEach(function(d,i){h+='<button class="tab'+(i===day?' on':'')+'" data-d="'+i+'">'+d+' '+dateOf(week,i).getDate()+'</button>'});
+  $("tabs").innerHTML=h;
+  Array.prototype.forEach.call($("tabs").children,function(b){b.onclick=function(){day=+b.dataset.d;render()}});
+
+  var wrap=$("slots");wrap.innerHTML="";
+  var dd=dateOf(week,day),full=dayCount(iso(dd))>=DAY_CAP;
+  SLOTS.forEach(function(s){
+    var closed=isPast(week,day,s);
+    var card=document.createElement("div");card.className="slot";
+    var head=document.createElement("div");head.className="time";
+    head.textContent=DAYS[day]+" "+MON[dd.getMonth()]+" "+dd.getDate()+", "+s.t;
+    var back=document.createElement("div");back.className="back";back.textContent="Back by "+s.e;
+    var how=document.createElement("div");how.className="how";how.textContent=HOWTO;
+    card.appendChild(head);card.appendChild(back);card.appendChild(how);
+    var list=[];
+    for(var n=0;n<s.seats;n++)list.push({suf:n?"-2":"",tr:false});
+    if(s.seats<2&&rows[key(week,day,s)+"-2"])list.push({suf:"-2",tr:false});
+    if(s.trainee)list.push({suf:"-t",tr:true});
+    list.forEach(function(it){
+      var id=key(week,day,s)+it.suf,r=rows[id];
+      var seat=document.createElement("div");seat.className="seat"+(it.tr?" trainee":"")+(r?"":" open");
+      var label=document.createElement("span");
+      if(it.tr){var g=document.createElement("span");g.className="tag";g.textContent="BEGINNER · 25";label.appendChild(g)}
+      if(r){
+        label.appendChild(document.createTextNode(r.name));seat.appendChild(label);
+        var mine=r.uid&&r.uid===Store.uid;
+        if(mine){var d=document.createElement("button");d.className="act drop";d.textContent="Drop";d.onclick=function(){drop(id)};seat.appendChild(d)}
+      }else{
+        label.appendChild(document.createTextNode(closed?"Closed":(full?"Day full":"Open")));
+        if(!it.tr)label.style.color="var(--muted)";seat.appendChild(label);
+        if(!closed&&!full){var b=document.createElement("button");b.className="act"+(it.tr?" tr":"");b.textContent=it.tr?"Take beginner spot":"Take advanced spot";b.onclick=function(){take(id)};seat.appendChild(b)}
+      }
+      card.appendChild(seat);
+    });
+    wrap.appendChild(card);
+  });
+
+  var nm=nameEl.value.trim().toLowerCase(),wa=iso(dateOf(week,0)),wb=iso(dateOf(week,6)),mineN=0,mineSw=0,open=0;
+  Object.keys(rows).forEach(function(k){var r=rows[k],kd=k.slice(0,10);
+    if(kd>=wa&&kd<=wb&&((Store.uid&&r.uid===Store.uid)||(nm&&r.name.toLowerCase()===nm))){mineN++;mineSw+=k.slice(-2)==="-t"?25:40}});
+  for(var i=0;i<7;i++){var di=iso(dateOf(week,i)),tk=Object.keys(rows).filter(function(k){return k.slice(0,10)===di}).length,os=0;
+    SLOTS.forEach(function(s){var b=key(week,i,s);if(!isPast(week,i,s)){for(var n=0;n<s.seats;n++)if(!rows[b+(n?"-2":"")])os++;if(s.trainee&&!rows[b+"-t"])os++}});
+    open+=Math.max(0,Math.min(os,DAY_CAP-tk))}
+  $("sum").innerHTML="<b>"+mineN+"</b> shifts for you this week ("+(mineN*4)+" hrs)."+gameHtml(nm,wa,wb);
+}
+
+var LEVELS=["Rookie","Runner","Charger","Voltage","Grid Legend"],XP_STEP=400,WEEK_GOAL=1750,QUEST=5;
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function swapsOf(k){return k.slice(-2)==="-t"?25:40}
+function gameHtml(nm,wa,wb){
+  var xp=0,wn=0,wsw=0,team=0,B={night:0,early:0,adv:0,bnr:0},board={};
+  function isMe(r){return (Store.uid&&r.uid===Store.uid)||(nm&&(r.name||"").trim().toLowerCase()===nm)}
+  Object.keys(rows).forEach(function(k){var r=rows[k],d=k.slice(0,10),sw=swapsOf(k),t=k.slice(11,15),nk=(r.name||"").trim().toLowerCase(),inW=d>=wa&&d<=wb;
+    if(inW){team+=sw;var o=board[nk]||(board[nk]={name:r.name,n:0,sw:0});o.n++;o.sw+=sw}
+    if(isMe(r)){xp+=sw;if(inW){wn++;wsw+=sw}
+      if(t==="0000")B.night=1;if(t==="0400")B.early=1;
+      if(k.slice(-2)==="-t")B.bnr=1;else B.adv=1}});
+  var lv=Math.min(LEVELS.length-1,Math.floor(xp/XP_STEP)),top=lv===LEVELS.length-1,into=top?XP_STEP:xp-lv*XP_STEP;
+  var lb=Object.keys(board).map(function(k){return board[k]}).sort(function(a,b){return b.sw-a.sw||b.n-a.n}).slice(0,5);
+  var leader=lb.length&&nm&&lb[0].name.trim().toLowerCase()===nm;
+  var cells="";for(var i=0;i<QUEST;i++)cells+='<div class="cell'+(i<wn?' on':'')+'">🔋</div>';
+  function chip(on,t){return '<span class="chip'+(on?'':' off')+'">'+t+'</span>'}
+  var tp=Math.min(100,Math.round(team/WEEK_GOAL*100));
+  var h='<div class="game">';
+  h+='<div class="gcard"><div class="gh"><span class="lvl">Level '+(lv+1)+' · '+LEVELS[lv]+'</span><span>'+xp+' XP</span></div>'
+   +'<div class="bar"><i style="width:'+Math.round(into/XP_STEP*100)+'%"></i></div>'
+   +'<div class="fine">'+(nm?(top?'Max level reached.':(XP_STEP-into)+' XP to '+LEVELS[lv+1]):'Type your name at the top to start earning XP.')+'</div>'
+   +'<div class="chips">'+chip(B.adv,'⚡ Advanced')+chip(B.bnr,'🌱 Beginner')+chip(B.night,'🌙 Night Owl')+chip(B.early,'🌅 Early Bird')+chip(wn>=QUEST,'🔥 Full Week')+chip(leader,'🏆 #1 Of The Week')+'</div></div>';
+  h+='<div class="gcard"><div class="gh"><b>Weekly quest: book '+QUEST+' shifts</b><span>'+Math.min(wn,QUEST)+' / '+QUEST+'</span></div><div class="cells">'+cells+'</div>'
+   +'<div class="fine">'+(wn>=QUEST?'Quest complete. You hit the 20-hour minimum.':wn+' shifts booked ('+(wn*4)+' hrs). '+(QUEST-wn)+' more to hit 20 hours.')+'</div></div>';
+  h+='</div>';
+  return h}
+function pop(sw){
+  var p=document.createElement("div");p.className="pop";p.textContent="+"+sw+" XP";document.body.appendChild(p);setTimeout(function(){p.remove()},1400);
+  var em=["🔋","⚡","🌟","🟢"];
+  for(var i=0;i<18;i++){var b=document.createElement("div");b.className="bit";b.textContent=em[i%4];
+    b.style.left="50%";b.style.top="42%";b.style.setProperty("--dx",(Math.random()*320-160)+"px");b.style.setProperty("--dy",(Math.random()*-240-20)+"px");
+    document.body.appendChild(b);(function(x){setTimeout(function(){x.remove()},1200)})(b)}}
+async function take(id){
+  if(!canWrite){showMsg("Sign-ups are not connected yet. Add your Supabase URL and key at the top of the script, then redeploy.");return}
+  var name=nameEl.value.trim();
+  if(!name){showMsg("Type your name at the top first.");nameEl.focus();return}
+  showMsg("");
+  try{
+    var res=await Store.claim(id,name);
+    if(res==="ok")pop(swapsOf(id));
+    if(res==="taken")showMsg("Someone just took that one.");
+    else if(res==="full")showMsg("That day is full.");
+    else if(res==="bad")showMsg("That spot is not open yet. Ask your manager to finish the Supabase update.");
+  }catch(e){showMsg("Could not save. Check your connection and try again.")}
+}
+async function drop(id){showMsg("");try{await Store.release(id)}catch(e){showMsg("Could not remove that shift.")}}
+
+render();setInterval(render,60000);
+(async function(){
+  try{
+    if(SUPABASE_URL.indexOf("PASTE")===0){showMsg("Add your Supabase URL and key at the top of the script.");canWrite=false;render();return}
+    if(!(await Store.init())){showMsg("Could not connect. Check that anonymous sign-ins are on in Supabase.");canWrite=false;render();return}
+    Store.subscribe(function(o){showMsg("");rows=o;render()},function(){showMsg("Could not load shifts.")});
+  }catch(e){showMsg("Could not connect to the sign-up database.")}
+})();
+</script>
+</body>
+</html>

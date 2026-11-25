@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VOS Logistics – Contractor Agreement &amp; Waiver</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+  :root { --lime:#5A9E1B; --dark:#1F2A1A; --light:#EEF6E4; --line:#C9DDB5; --err:#B3261E; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--dark); background:#F7F9F4; line-height:1.45; }
+  header { background:var(--dark); color:#fff; padding:18px 20px; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; color:#C9E7A8; font-size:14px; }
+  main { max-width:760px; margin:0 auto; padding:18px 16px 60px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:16px; }
+  .waiver { max-height:55vh; overflow-y:auto; font-size:14.5px; }
+  .waiver h1 { font-size:18px; margin:26px 0 4px; padding-top:14px; border-top:2px solid var(--lime); }
+  .waiver h1:first-child { margin-top:0; padding-top:0; border-top:none; }
+  .waiver table { border-collapse:collapse; margin:6px 0 10px; }
+  .waiver td, .waiver th { border:1px solid var(--line); padding:5px 10px; text-align:left; }
+  .waiver th { background:var(--light); }
+  .waiver h2 { font-size:16px; color:var(--lime); margin:18px 0 6px; }
+  .waiver h2:first-child { margin-top:0; }
+  .waiver .caps { font-weight:700; }
+  .scroll-note { font-size:13px; color:#5b6656; margin-top:8px; }
+  label { display:block; font-weight:600; font-size:14px; margin:14px 0 5px; }
+  input[type=text], input[type=email], input[type=tel] { width:100%; padding:11px 12px; font-size:16px; border:1px solid #B9C7AE; border-radius:8px; }
+  input:focus { outline:2px solid var(--lime); border-color:var(--lime); }
+  .row { display:flex; gap:12px; } .row > div { flex:1; }
+  .check { display:flex; gap:10px; align-items:flex-start; margin-top:14px; font-size:14.5px; }
+  .check input { width:20px; height:20px; margin-top:2px; flex:none; }
+  canvas { width:100%; height:150px; border:1px dashed #9DB38A; border-radius:8px; background:#FCFDFB; touch-action:none; display:block; }
+  .small-btn { background:none; border:none; color:var(--lime); font-weight:600; padding:6px 0; cursor:pointer; font-size:14px; }
+  button.primary { width:100%; margin-top:18px; padding:14px; font-size:17px; font-weight:700; color:#fff; background:var(--lime); border:none; border-radius:8px; cursor:pointer; }
+  button.primary:disabled { background:#A9C98A; cursor:default; }
+  .error { color:var(--err); font-size:14px; margin-top:10px; min-height:1em; }
+  .done { text-align:center; }
+  .done h2 { color:var(--lime); }
+  .done a { display:inline-block; margin-top:10px; padding:12px 18px; background:var(--lime); color:#fff; border-radius:8px; text-decoration:none; font-weight:700; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>VOS Logistics</h1>
+  <p>Independent Contractor Agreement and Liability Waiver</p>
+</header>
+<main>
+  <div id="formView">
+    <div class="card">
+      <div class="waiver" id="waiverText"></div>
+      <div class="scroll-note">Scroll to read both documents before signing.</div>
+    </div>
+
+    <form class="card" id="waiverForm" novalidate>
+      <label for="fullName">Full legal name</label>
+      <input type="text" id="fullName" autocomplete="name" required>
+
+      <label for="bizName">Business name (optional)</label>
+      <input type="text" id="bizName" autocomplete="organization">
+
+      <label for="idNumber">Driver's license or state ID number</label>
+      <input type="text" id="idNumber" autocomplete="off" required>
+
+      <div class="row">
+        <div>
+          <label for="phone">Phone</label>
+          <input type="tel" id="phone" autocomplete="tel" required>
+        </div>
+        <div>
+          <label for="email">Email</label>
+          <input type="email" id="email" autocomplete="email" required>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="init3">Initials – Section 3 (safety rules, 4-battery limit)</label>
+          <input type="text" id="init3" maxlength="4" required>
+        </div>
+        <div>
+          <label for="init4">Initials – Section 4 (release and indemnity)</label>
+          <input type="text" id="init4" maxlength="4" required>
+        </div>
+      </div>
+
+      <label>Signature (sign with your finger or mouse)</label>
+      <canvas id="sigPad"></canvas>
+      <button type="button" class="small-btn" id="clearSig">Clear signature</button>
+
+      <div class="check">
+        <input type="checkbox" id="agree" required>
+        <span>I have read the Independent Contractor Agreement and the Liability Waiver, I agree to both, I understand I am giving up legal rights, I am at least 18 years old, and I agree that my signature above is my legal signature.</span>
+      </div>
+
+      <button type="submit" class="primary" id="submitBtn">Sign and submit</button>
+      <div class="error" id="error"></div>
+    </form>
+  </div>
+
+  <div id="doneView" class="card done hidden">
+    <h2>You're all set</h2>
+    <p>Your signed agreement and waiver were submitted to VOS Logistics. Download a copy for your records.</p>
+    <a id="downloadLink" href="#" download>Download my signed copy (PDF)</a>
+  </div>
+</main>
+
+<script>
+// ===== SETTINGS: paste your Supabase anon key (same one the shift sign-up page uses) =====
+const SUPABASE_URL = "https://oxqsjfkatdadtyvyiqzt.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_MsfuEmbtYKu3moMaht4KGg_EPoIITDD";
+const TABLE = "waiver_signatures";
+const BUCKET = "waivers";
+const VERSION = "waiver 2026-11-20 / contractor agreement 2026-11-20";
+// ==========================================================================================
+
+const WAIVER = [
+  { h: "1. Parties and purpose", p: [
+    'This Release and Waiver of Liability ("Agreement") is between VOS Logistics ("VOS"), the Lime operations partner in Austin, Texas, and the subcontractor signing below ("Subcontractor").',
+    'Subcontractor performs battery swaps, battery pickups and drop-offs, warehouse loading and unloading, and related field tasks ("the Work") as an independent contractor, not as an employee of VOS or Lime. Subcontractor uses their own vehicle, sets their own availability through the shift schedule, and is paid per completed task.'
+  ]},
+  { h: "2. Risks of the Work", p: [
+    "Subcontractor understands the Work carries real physical and property risks, including:"
+  ], list: [
+    "Back, shoulder and other strain injuries from lifting and carrying batteries",
+    "Cuts, pinches and crush injuries from handling batteries, scooters, bikes and cases",
+    "Burns, heat or chemical exposure from damaged or overheating lithium-ion batteries",
+    "Traffic accidents, being struck by vehicles, and injuries while parking, loading or unloading roadside",
+    "Slips, trips and falls on sidewalks, curbs, ramps and warehouse floors",
+    "Weather, night work and low visibility",
+    "Theft of or damage to Subcontractor's vehicle, keys or personal property",
+    "Parking tickets, towing and other fines"
+  ], after: [
+    "Subcontractor has had the chance to ask questions about these risks and voluntarily chooses to accept them."
+  ]},
+  { h: "3. Safety and conduct rules", p: [
+    "While doing the Work or representing VOS Logistics, Subcontractor agrees they will not:"
+  ], ordered: true, list: [
+    "Lift or carry more than 4 batteries at one time. Never lift a full case. Use a cart or make more trips.",
+    "Start a shift without checking oil, fluids, gas and tire pressure.",
+    "Work without a reflective vest and safety gloves on.",
+    "Park in tow-away zones, in front of fire hydrants, across driveways, or in ticketed or restricted zones.",
+    "Drive or maneuver carelessly around pedestrians, cyclists or other vehicles, or use a phone while driving.",
+    "Leave their vehicle unlocked or keys unattended at any time.",
+    "Take a battery shift without adding their name to the schedule, or skip a shift without removing their name.",
+    "Load uncharged batteries at the warehouse before unloading their charged batteries.",
+    "Leave the warehouse without turning in all batteries and posting the battery count in the group chat.",
+    "Take any battery home or store batteries anywhere other than the warehouse.",
+    "Handle a battery that is swollen, leaking, cracked, smoking or hot. Subcontractor will leave it, keep people away, and tell their lead right away.",
+    "Work while under the influence of alcohol, drugs or any substance that affects alertness."
+  ], after: [
+    "Subcontractor understands that injuries caused by breaking these rules, including back injuries from lifting more than 4 batteries, are Subcontractor's own responsibility. Breaking these rules may also lead to removal from the roster."
+  ]},
+  { h: "4. Release, indemnity and responsibility", p: [
+    { caps: true, t: "RELEASE OF LIABILITY, INCLUDING VOS LOGISTICS' OWN NEGLIGENCE. TO THE FULLEST EXTENT ALLOWED BY TEXAS LAW, SUBCONTRACTOR RELEASES, WAIVES AND AGREES NOT TO SUE VOS LOGISTICS, ITS OWNERS, MANAGERS, LEADS AND AGENTS (\"RELEASED PARTIES\") FOR ANY INJURY, ILLNESS, DEATH, PROPERTY DAMAGE OR LOSS ARISING FROM THE WORK, INCLUDING CLAIMS CAUSED IN WHOLE OR IN PART BY THE NEGLIGENCE OF THE RELEASED PARTIES. THIS RELEASE DOES NOT COVER GROSS NEGLIGENCE OR INTENTIONAL MISCONDUCT." },
+    { caps: true, t: "INDEMNITY. SUBCONTRACTOR WILL DEFEND AND REIMBURSE THE RELEASED PARTIES FOR ANY CLAIM, FINE OR COST BROUGHT BY ANYONE ELSE THAT ARISES FROM SUBCONTRACTOR'S WORK, VEHICLE, OR BREAK OF THE RULES IN SECTION 3." },
+    "Vehicle, fines and personal property. Subcontractor is responsible for their own vehicle, its maintenance, and auto insurance that meets Texas minimums. Subcontractor pays any parking tickets, towing fees or traffic fines they receive. VOS is not responsible for theft of or damage to Subcontractor's vehicle, keys, phone or belongings.",
+    "Health insurance. Subcontractor is responsible for their own health and injury coverage. VOS does not provide workers' compensation coverage for subcontractors."
+  ]},
+  { h: "5. Acknowledgement", p: [
+    "This Agreement is governed by Texas law. If any part is found unenforceable, the rest still applies.",
+    { caps: true, t: "BY SIGNING, SUBCONTRACTOR CONFIRMS THEY HAVE READ THIS ENTIRE AGREEMENT, UNDERSTAND IT, AND ARE GIVING UP SUBSTANTIAL LEGAL RIGHTS, INCLUDING THE RIGHT TO SUE VOS LOGISTICS FOR ITS OWN NEGLIGENCE. SUBCONTRACTOR IS SIGNING VOLUNTARILY AND IS AT LEAST 18 YEARS OLD." }
+  ]}
+];
+
+
+const ICA = [
+  { h: "1. Parties, term and services", p: [
+    'This Independent Contractor Agreement ("Agreement") is between VOS Logistics ("VOS"), the Lime operations partner in Austin, Texas, and the contractor signing below ("Contractor").',
+    { fields: true },
+    'Services. Contractor will perform battery swaps, battery pickups and drop-offs, warehouse loading and unloading, and related field tasks for VOS ("Tasks").',
+    "Term. This Agreement starts on the start date above and continues until either party ends it under Section 5."
+  ]},
+  { h: "2. Independent contractor relationship", p: [
+    "Contractor is an independent contractor, not an employee, partner or agent of VOS or Lime."
+  ], list: [
+    "Schedule. Contractor chooses which shifts to sign up for and when to work.",
+    "How the work gets done. Contractor decides their own route, order and method for completing Tasks, as long as they follow the safety rules in the Liability Waiver and any site or Lime requirements.",
+    "Taxes. VOS will not withhold income tax, Social Security or Medicare. Contractor is responsible for all their own taxes. Contractor will give VOS a completed IRS Form W-9 before their first payment, and VOS will issue a Form 1099 when required.",
+    "No benefits. Contractor is not eligible for health insurance, retirement, paid time off, unemployment benefits or workers' compensation through VOS.",
+    "No authority. Contractor cannot sign contracts or make promises on behalf of VOS or Lime."
+  ]},
+  { h: "3. Pay", p: [
+    "Contractor is paid per completed Task. VOS keeps a service fee from each Task, and that fee drops as Contractor's weekly Task count goes up. The rate for the week is set by the total Tasks completed that week and applies to every Task that week."
+  ], table: [["Tasks completed in the week", "VOS service fee per Task"], ["Under 400", "$1.00"], ["400 to 599", "$0.80"], ["600 or more", "$0.60"]],
+  after: [
+    "Payment schedule. The work week runs Monday to Sunday. VOS pays Contractor every Monday by direct deposit / Zelle / other.",
+    "Expenses. Contractor pays their own costs of doing the work, including gas, vehicle maintenance, phone, insurance, tolls, parking, tickets and fines. VOS does not reimburse these unless agreed in writing in advance.",
+    "No guarantee. VOS does not guarantee any number of Tasks, hours or earnings."
+  ]},
+  { h: "4. Standards, equipment and company property", p: [], list: [
+    "Quality. Tasks must be completed correctly and safely. Tasks that are not completed correctly may not count toward pay.",
+    "Scheduling. Contractor adds their name to the schedule before taking a battery shift and removes it if they can't make it, with 24 hr advance notice.",
+    "Equipment. Contractor provides their own vehicle, phone, safety gloves and reflective vest, and keeps their vehicle in safe working condition.",
+    "Insurance. Contractor keeps auto insurance that meets Texas minimums for the whole time they do Tasks and shows proof to VOS on request.",
+    "Batteries and Lime property. Batteries, scooters, bikes, chargers and other Lime or VOS equipment stay the property of Lime or VOS. Contractor returns all batteries to the warehouse before leaving and never takes them home. Contractor pays for any equipment lost or damaged through their own carelessness.",
+    "Confidentiality. Contractor keeps warehouse locations, access codes, apps, pay rates and other non-public information about VOS and Lime private, during and after this Agreement."
+  ]},
+  { h: "5. Ending the Agreement and general terms", p: [
+    "Ending the Agreement. Either party can end this Agreement at any time, for any reason, by telling the other in writing (text or email is fine). VOS pays Contractor for all Tasks completed before the end date on the next regular pay day.",
+    "Inactivity. If Contractor is inactive for 3 weeks without contacting their lead, this Agreement ends automatically. To come back, Contractor signs a new agreement under the terms in place at that time.",
+    "Liability Waiver. Contractor's signed VOS Logistics Subcontractor Release and Waiver of Liability is part of this Agreement. If this Agreement ends, the Waiver still covers anything that happened while Contractor was doing Tasks.",
+    "General. This Agreement is governed by Texas law. Together with the Waiver, it is the full agreement between the parties and replaces any earlier promises. Changes must be in writing and accepted by both parties. If any part is found unenforceable, the rest still applies."
+  ]}
+];
+const DOCS = [
+  { title: "Independent Contractor Agreement", sections: ICA },
+  { title: "Subcontractor Release and Waiver of Liability", sections: WAIVER }
+];
+
+// ---------- Render documents ----------
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const para = x => typeof x === "string" ? `<p>${esc(x)}</p>` : `<p class="caps">${esc(x.t)}</p>`;
+const fieldsHtml = `<p>Contractor: the person signing below<br>Business name: as entered below (if any)<br>Start date: the date signed below</p>`;
+const tableHtml = t => `<table>${t.map((r, i) => `<tr>${r.map(c => i ? `<td>${esc(c)}</td>` : `<th>${esc(c)}</th>`).join("")}</tr>`).join("")}</table>`;
+const partHtml = x => x && x.fields ? fieldsHtml : para(x);
+document.getElementById("waiverText").innerHTML = DOCS.map(d =>
+  `<h1>${esc(d.title)}</h1>` + d.sections.map(s =>
+    `<h2>${esc(s.h)}</h2>` + s.p.map(partHtml).join("") +
+    (s.list ? `<${s.ordered ? "ol" : "ul"}>${s.list.map(i => `<li>${esc(i)}</li>`).join("")}</${s.ordered ? "ol" : "ul"}>` : "") +
+    (s.table ? tableHtml(s.table) : "") +
+    (s.after ? s.after.map(para).join("") : "")
+  ).join("")
+).join("");
+
+// ---------- Signature pad ----------
+const pad = document.getElementById("sigPad");
+const ctx = pad.getContext("2d");
+let drawing = false, hasInk = false;
+function sizePad() {
+  const r = pad.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  pad.width = r.width * d; pad.height = r.height * d;
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#111";
+  hasInk = false;
+}
+function pos(e) { const r = pad.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+pad.addEventListener("pointerdown", e => { drawing = true; pad.setPointerCapture(e.pointerId); const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+pad.addEventListener("pointermove", e => { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasInk = true; });
+["pointerup","pointercancel","pointerleave"].forEach(t => pad.addEventListener(t, () => drawing = false));
+document.getElementById("clearSig").onclick = () => { ctx.clearRect(0, 0, pad.width, pad.height); hasInk = false; };
+window.addEventListener("load", sizePad);
+
+// ---------- PDF ----------
+function buildPdf(d) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const M = 54, W = 612 - M * 2, BOTTOM = 792 - 54;
+  let y = 60;
+  const ensure = h => { if (y + h > BOTTOM) { doc.addPage(); y = 60; } };
+  const text = (t, size = 10, style = "normal", indent = 0) => {
+    doc.setFont("helvetica", style); doc.setFontSize(size);
+    const lines = doc.splitTextToSize(t, W - indent);
+    lines.forEach(l => { ensure(size * 1.35); doc.text(l, M + indent, y); y += size * 1.35; });
+  };
+  DOCS.forEach((D, di) => {
+    if (di > 0) { doc.addPage(); y = 60; }
+    doc.setTextColor(31, 42, 26);
+    text("VOS Logistics", 18, "bold");
+    doc.setTextColor(90, 158, 27);
+    text(D.title, 12, "normal");
+    doc.setTextColor(31, 42, 26);
+    y += 6;
+    D.sections.forEach(s => {
+      y += 6; doc.setTextColor(90, 158, 27); text(s.h, 11.5, "bold"); doc.setTextColor(31, 42, 26);
+      const out = x => {
+        if (x && x.fields) {
+          text("Contractor: " + d.full_name, 9.5, "bold");
+          text("Business name: " + (d.business_name || "None"), 9.5, "bold");
+          text("Start date: " + d.signed_date, 9.5, "bold"); y += 3; return;
+        }
+        typeof x === "string" ? text(x, 9.5) : text(x.t, 9.5, "bold"); y += 3;
+      };
+      s.p.forEach(out);
+      if (s.list) s.list.forEach((i, n) => text((s.ordered ? (n + 1) + ". " : "• ") + i, 9.5, "normal", 12));
+      if (s.table) {
+        const cw = [200, 160]; y += 2;
+        s.table.forEach((r, ri) => {
+          ensure(18);
+          if (ri === 0) { doc.setFillColor(238, 246, 228); doc.rect(M, y - 11, cw[0] + cw[1], 16, "F"); }
+          doc.setDrawColor(201, 221, 181); doc.rect(M, y - 11, cw[0], 16); doc.rect(M + cw[0], y - 11, cw[1], 16);
+          doc.setFont("helvetica", ri === 0 ? "bold" : "normal"); doc.setFontSize(9.5);
+          doc.text(r[0], M + 6, y); doc.text(r[1], M + cw[0] + 6, y); y += 16;
+        });
+        y += 6;
+      }
+      if (s.after) { y += 3; s.after.forEach(out); }
+    });
+  });
+
+  ensure(260); y += 10;
+  doc.setDrawColor(90, 158, 27); doc.line(M, y, M + W, y); y += 18;
+  doc.setTextColor(90, 158, 27); text("Signature", 11.5, "bold"); doc.setTextColor(31, 42, 26);
+  const field = (k, v) => { doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text(k, M, y); doc.setFont("helvetica", "normal"); doc.text(v, M + 150, y); y += 16; };
+  field("Full legal name:", d.full_name);
+  field("Business name:", d.business_name || "None");
+  field("Driver's license / ID #:", d.id_number);
+  field("Phone:", d.phone);
+  field("Email:", d.email);
+  field("Initials – Section 3:", d.initials_section3);
+  field("Initials – Section 4:", d.initials_section4);
+  field("Signed:", d.signed_local);
+  y += 4;
+  doc.setFont("helvetica", "bold"); doc.text("Signature:", M, y);
+  doc.addImage(d.signature_png, "PNG", M + 150, y - 14, 220, 70);
+  y += 66; doc.line(M + 150, y, M + 370, y); y += 22;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(90, 100, 85);
+  text(`This signature applies to both the Independent Contractor Agreement and the Liability Waiver above. Signed electronically. The signer checked a box agreeing that this is their legal signature. Waiver version ${VERSION}. Submission ID ${d.submission_id}.`, 8);
+  return doc;
+}
+
+// ---------- Submit ----------
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = id => document.getElementById(id);
+const errBox = $("error");
+
+$("waiverForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  errBox.textContent = "";
+  const v = id => $(id).value.trim();
+  const d = {
+    full_name: v("fullName"), id_number: v("idNumber"), phone: v("phone"), email: v("email"),
+    initials_section3: v("init3").toUpperCase(), initials_section4: v("init4").toUpperCase()
+  };
+  if (Object.values(d).some(x => !x)) return errBox.textContent = "Please fill in every required field.";
+  d.business_name = v("bizName");
+  if (!/^\S+@\S+\.\S+$/.test(d.email)) return errBox.textContent = "Please enter a valid email.";
+  if (!hasInk) return errBox.textContent = "Please sign in the signature box.";
+  if (!$("agree").checked) return errBox.textContent = "Please check the box to agree.";
+
+  const btn = $("submitBtn"); btn.disabled = true; btn.textContent = "Submitting…";
+  try {
+    const now = new Date();
+    d.submission_id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+    d.signed_local = now.toLocaleString("en-US", { timeZone: "America/Chicago" }) + " (Central)";
+    d.signed_date = now.toLocaleDateString("en-US", { timeZone: "America/Chicago", month: "long", day: "numeric", year: "numeric" });
+    d.signature_png = pad.toDataURL("image/png");
+
+    const pdf = buildPdf(d);
+    const blob = pdf.output("blob");
+    const safeName = d.full_name.replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "");
+    const path = `${now.toISOString().slice(0, 10)}_${safeName}_${d.submission_id.slice(0, 8)}.pdf`;
+
+    const up = await supa.storage.from(BUCKET).upload(path, blob, { contentType: "application/pdf", upsert: false });
+    if (up.error) throw up.error;
+
+    const ins = await supa.from(TABLE).insert({
+      id: d.submission_id, full_name: d.full_name, business_name: d.business_name || null, id_number: d.id_number, phone: d.phone, email: d.email,
+      initials_section3: d.initials_section3, initials_section4: d.initials_section4,
+      waiver_version: VERSION, pdf_path: path, user_agent: navigator.userAgent
+    });
+    if (ins.error) throw ins.error;
+
+    const link = $("downloadLink");
+    link.href = URL.createObjectURL(blob);
+    link.download = `VOS_Logistics_Agreement_and_Waiver_${safeName}.pdf`;
+    $("formView").classList.add("hidden");
+    $("doneView").classList.remove("hidden");
+    window.scrollTo(0, 0);
+  } catch (err) {
+    console.error(err);
+    errBox.textContent = "Something went wrong submitting your documents. Please try again, or text your lead.";
+    btn.disabled = false; btn.textContent = "Sign and submit";
+  }
+});
+</script>
+</body>
+</html>
