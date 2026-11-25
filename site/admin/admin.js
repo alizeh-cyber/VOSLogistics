@@ -59,7 +59,8 @@
       sb.from("portal_settings").select("*").single(),
       sb.from("app_admins").select("user_id"),
       sb.from("pay_plans").select("*").order("sort"),
-      sb.from("roster_invites").select("*").order("full_name")
+      sb.from("roster_invites").select("*").order("full_name"),
+      sb.rpc("admin_pending_matches")
     ]);
     var admins = (r[5].data || []).map(function (x) { return x.user_id; });
     data.apps = r[0].data || [];
@@ -69,6 +70,7 @@
     data.settings = r[4].data;
     data.plans = r[6].data || [];
     data.invites = r[7].data || [];
+    data.matches = {}; (r[8].data || []).forEach(function (m) { data.matches[m.user_id] = m; });
   }
   function planLabel(code) { var p = data.plans.filter(function (x) { return x.code === code; })[0]; return p ? p.label : (code || "—"); }
   function planOptions(sel) { return data.plans.map(function (p) { return '<option value="' + esc(p.code) + '"' + (p.code === sel ? " selected" : "") + ">" + esc(p.label) + "</option>"; }).join(""); }
@@ -147,14 +149,23 @@
     var pend = data.assoc.filter(function (a) { return a.status === "pending"; });
     var h = "";
     if (pend.length) {
-      h += '<div class="card warn"><h2>Account requests (' + pend.length + ")</h2><ul class=\"list\">" + pend.map(function (a) {
-        return "<li><span><b>" + esc(a.full_name) + '</b><br><span class="small muted">' + esc(a.phone) + " · " + esc(a.email) + " · requested " + fmtDate(a.created_at) + "</span></span>" +
-          '<span class="toolbar" style="margin:0;flex-wrap:nowrap"><button class="btn sm" data-approve="' + a.user_id + '">Approve</button><button class="btn danger sm" data-decline="' + a.user_id + '">Decline</button></span></li>';
+      h += '<div class="card warn"><h2>Account requests (' + pend.length + ")</h2>" +
+        '<p class="small muted">Check it\'s really them (for example, text them) before approving. Anyone can sign up with any email address.</p><ul class="list">' + pend.map(function (a) {
+        var m = data.matches[a.user_id] || {};
+        var match = m.on_list
+          ? '<span class="badge green">On team list as ' + esc(m.list_name) + "</span>"
+          : '<span class="badge amber">Not on team list</span>';
+        return '<li style="flex-wrap:wrap"><span><b>' + esc(a.full_name) + "</b> " + match + '<br><span class="small muted">Login: ' + esc(m.login_email || a.email) + " · " + esc(a.phone) + " · requested " + fmtDate(a.created_at) + "</span></span>" +
+          '<span class="toolbar" style="margin:0;flex-wrap:nowrap"><select data-reqplan="' + a.user_id + '" title="Pay plan">' + planOptions(m.on_list ? m.list_plan : "scale_100") + "</select>" +
+          '<button class="btn sm" data-approve="' + a.user_id + '">Approve</button><button class="btn danger sm" data-decline="' + a.user_id + '">Decline</button></span></li>';
       }).join("") + "</ul></div>";
     }
     h += '<div class="card"><h2>Roster</h2><div class="toolbar"><input type="search" id="rq" placeholder="Search name, phone, email…" value="' + esc(rosterQ) + '"><span class="muted small" id="rcount"></span></div><div class="tablewrap" id="rtable"></div></div>';
     v.innerHTML = h;
-    v.querySelectorAll("[data-approve]").forEach(function (b) { b.onclick = function () { setStatus(b.dataset.approve, "approved"); }; });
+    v.querySelectorAll("[data-approve]").forEach(function (b) { b.onclick = function () {
+      var sel = v.querySelector('select[data-reqplan="' + b.dataset.approve + '"]');
+      setStatus(b.dataset.approve, "approved", sel ? sel.value : null);
+    }; });
     v.querySelectorAll("[data-decline]").forEach(function (b) { b.onclick = function () { if (confirm("Decline this account? They won't be able to see the schedule.")) setStatus(b.dataset.decline, "declined"); }; });
     $("rq").oninput = function () { rosterQ = this.value; rosterTable(); };
     rosterTable();
@@ -172,9 +183,22 @@
           '<td><select data-plan="' + a.user_id + '" title="' + esc(planTiers(a.pay_plan)) + '" style="width:auto">' + planOptions(a.pay_plan) + "</select></td>" +
           "<td>" + (w ? (w.pay_plan === a.pay_plan ? '<span class="badge green">Yes</span>' : '<span class="badge amber" title="Signed under a different pay plan">Needs to re-sign</span>') : '<span class="badge amber">No</span>') + "</td><td>" + (w ? fmtDate(w.signed_at) : "—") + "</td>" +
           "<td>" + badge(ASSOC_STATUS, a.status) + "</td><td>" +
-          (a.status === "approved" ? '<button class="btn danger sm" data-revoke="' + a.user_id + '">Remove access</button>' : '<button class="btn ghost sm" data-reapprove="' + a.user_id + '">Approve</button>') + "</td></tr>";
+          (a.status === "approved" ? '<button class="btn danger sm" data-revoke="' + a.user_id + '">Remove access</button>' : '<button class="btn ghost sm" data-reapprove="' + a.user_id + '">Approve</button>') +
+          ' <button class="btn ghost sm" data-pw="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Set password</button></td></tr>';
       }).join("") + "</tbody></table>";
     $("rtable").querySelectorAll("[data-revoke]").forEach(function (b) { b.onclick = function () { if (confirm("Remove this associate's access to the schedule? Their existing sign-ups stay until you remove them.")) setStatus(b.dataset.revoke, "declined"); }; });
+    $("rtable").querySelectorAll("[data-pw]").forEach(function (b) {
+      b.onclick = async function () {
+        var words = ["Battery", "Scooter", "Charger", "Volt", "Lime", "Austin"];
+        var suggestion = words[Math.floor(Math.random() * words.length)] + "-" + (1000 + Math.floor(Math.random() * 9000));
+        var pw = prompt("Set a temporary password for " + b.dataset.n + " (8+ characters).\nText it to them; they can change it under My details.", suggestion);
+        if (pw === null) return;
+        if (pw.length < 8) { alert("Password must be at least 8 characters."); return; }
+        var r = await sb.rpc("admin_set_password", { target: b.dataset.pw, new_password: pw });
+        if (r.error) { alert("Could not set the password."); return; }
+        alert("Done. " + b.dataset.n + "'s temporary password is: " + pw);
+      };
+    });
     $("rtable").querySelectorAll("select[data-plan]").forEach(function (sel) {
       var before = sel.value;
       sel.onchange = async function () {
@@ -188,10 +212,12 @@
     });
     $("rtable").querySelectorAll("[data-reapprove]").forEach(function (b) { b.onclick = function () { setStatus(b.dataset.reapprove, "approved"); }; });
   }
-  async function setStatus(uid, st) {
+  async function setStatus(uid, st, plan) {
     var r = await sb.from("associates").update({ status: st }).eq("user_id", uid).select().single();
+    // On approval the database applies the team-list plan; if you picked a different one, save that too.
+    if (!r.error && plan && r.data.pay_plan !== plan) r = await sb.from("associates").update({ pay_plan: plan }).eq("user_id", uid).select().single();
     if (r.error) { alert("Could not update the account."); return; }
-    data.assoc = data.assoc.map(function (a) { return a.user_id === uid ? r.data : a; });
+    await loadAll();
     draw();
   }
 
@@ -199,7 +225,7 @@
   var teamQ = "";
   function drawTeam() {
     var v = $("view");
-    v.innerHTML = '<div class="card"><h2>Pre-approved team list</h2><p class="small muted">When someone on this list creates a portal account with this email and confirms it, they\'re approved automatically and their agreement shows this pay plan. Pay plans are private: each person only ever sees their own.</p>' +
+    v.innerHTML = '<div class="card"><h2>Pre-approved team list</h2><p class="small muted">When someone signs up with an email on this list, they get this pay plan automatically. Everyone else who signs up gets Scale A. Pay plans are private: each person only ever sees their own.</p>' +
       '<div class="toolbar"><input type="search" id="tq" placeholder="Search name, phone, email…" value="' + esc(teamQ) + '"><span class="muted small" id="tcount"></span></div><div class="tablewrap" id="ttable"></div></div>' +
       '<div class="card"><h2>Add someone</h2><form id="addInv" novalidate><div class="row"><div><label for="inName">Full name</label><input type="text" id="inName" maxlength="80"></div>' +
       '<div><label for="inEmail">Email</label><input type="email" id="inEmail"></div><div><label for="inPhone">Phone</label><input type="tel" id="inPhone" maxlength="30"></div></div>' +
@@ -339,6 +365,8 @@
     v.innerHTML = '<div class="card"><h2>Schedule settings</h2><div class="row" style="max-width:520px">' +
       '<div><label for="ss">New schedule opens on</label><input type="date" id="ss" value="' + esc(s.schedule_start) + '"></div>' +
       '<div><label for="dc">Max sign-ups per day</label><input type="number" id="dc" min="1" max="99" value="' + esc(s.day_cap) + '"></div></div>' +
+      '<label style="display:flex;gap:10px;align-items:flex-start;margin-top:18px;font-weight:400"><input type="checkbox" id="aa"' + (s.auto_approve ? " checked" : "") + ' style="margin-top:4px">' +
+      '<span><b>New sign-ups: approve automatically</b><br><span class="small muted">On: new accounts go straight to signing their agreement (team-list people get their listed pay plan, everyone else gets Scale A). Off: new accounts wait in Associates → Account requests for you to approve.</span></span></label>' +
       '<button class="btn" style="margin-top:16px" id="saveS">Save settings</button><div class="error" id="sErr"></div></div>' +
       '<div class="card"><h2>Daily shifts</h2><p class="small muted">These shifts repeat every day. Changing seats only affects new sign-ups. Turning a shift off hides it from associates.</p>' +
       '<div class="tablewrap"><table><thead><tr><th>Start (24h)</th><th>Starts</th><th>Back by</th><th>Advanced spots</th><th>Beginner spots</th><th>On</th></tr></thead><tbody id="tt"></tbody></table></div>' +
@@ -357,7 +385,7 @@
     rowsHtml();
     $("addT").onclick = function () { types.push({ _new: true, code: "", start_label: "", end_label: "", advanced_seats: 1, beginner_seats: 0, active: true }); rowsHtml(); };
     $("saveS").onclick = async function () {
-      var r = await sb.from("portal_settings").update({ schedule_start: $("ss").value, day_cap: +$("dc").value, updated_at: new Date().toISOString() }).eq("id", true).select().single();
+      var r = await sb.from("portal_settings").update({ schedule_start: $("ss").value, day_cap: +$("dc").value, auto_approve: $("aa").checked, updated_at: new Date().toISOString() }).eq("id", true).select().single();
       if (r.error) { $("sErr").className = "error"; $("sErr").textContent = "Could not save: " + r.error.message; return; }
       data.settings = r.data; $("sErr").className = "notice"; $("sErr").textContent = "Saved.";
     };

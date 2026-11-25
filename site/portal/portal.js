@@ -25,8 +25,14 @@
     var t = { login: "Log in", signup: "Create your account", forgot: "Reset your password" }[mode];
     var h = '<div class="card"><div class="eyebrow">VOS Logistics associates</div><h1>' + t + "</h1>";
     if (mode === "login") h += '<p class="muted">Log in to see the shift schedule and sign up for shifts.</p>';
-    if (mode === "signup") h += '<p class="muted">After you create your account, VOS will approve it. Then you\'ll sign your contractor agreement and can start picking shifts.</p>';
-    if (mode === "forgot") h += '<p class="muted">We\'ll email you a link to set a new password.</p>';
+    if (mode === "signup") h += '<p class="muted">Create your account, sign your contractor agreement, then start picking shifts. Use the email you gave VOS.</p>';
+    if (mode === "forgot") {
+      app.innerHTML = '<div class="card"><div class="eyebrow">VOS Logistics associates</div><h1>Forgot your password?</h1>' +
+        "<p>Text your VOS lead and ask for a temporary password. Log in with it, then change it under <b>My details</b> in your dashboard.</p>" +
+        '<button class="btn ghost" id="backLogin">Back to log in</button></div>';
+      $("backLogin").onclick = function () { showAuth("login"); };
+      return;
+    }
     h += '<form id="authForm" novalidate>';
     if (mode === "signup") {
       h += '<label for="fName">Full name</label><input type="text" id="fName" autocomplete="name" maxlength="80">' +
@@ -55,7 +61,7 @@
           if (!pass) { err.textContent = "Please enter your password."; return; }
           var r = await sb.auth.signInWithPassword({ email: email, password: pass });
           if (r.error) {
-            err.textContent = /confirm/i.test(r.error.message) ? "Please confirm your email first. Check your inbox for the link we sent." : "That email and password don't match.";
+            err.textContent = /confirm/i.test(r.error.message) ? "Your account isn't active yet. Please text your VOS lead." : "That email and password don't match. Forgot it? Text your VOS lead for a temporary password.";
             return;
           }
           session = r.data.session; route();
@@ -70,7 +76,7 @@
             return;
           }
           if (s.data.session) { session = s.data.session; route(); }
-          else showAuth("login", "Account created. Check your email (and spam folder) and click the link to confirm it, then log in.");
+          else showAuth("login", "Account created. You can log in now.");
         } else {
           var f = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/portal/" });
           if (f.error) { err.textContent = "Could not send the email. Please try again in a few minutes."; return; }
@@ -128,9 +134,20 @@
       '<div class="row"><div><label for="pPhone">Phone</label><input type="tel" id="pPhone" maxlength="30" value="' + esc(me.phone) + '"></div>' +
       '<div><label for="pEmail">Contact email</label><input type="email" id="pEmail" maxlength="200" value="' + esc(me.email) + '"></div></div>' +
       '<button class="btn ghost" style="margin-top:16px" id="profBtn">Save my details</button><div class="error" id="profErr"></div></form>' +
-      '<p class="small muted" style="margin-top:8px">Your login email stays ' + esc(session.user.email) + ".</p></div>";
+      '<p class="small muted" style="margin-top:8px">Your login email stays ' + esc(session.user.email) + ".</p>" +
+      '<form id="pwChange" novalidate style="margin-top:18px;border-top:1px solid var(--line);padding-top:4px"><label for="newPw">Change password</label>' +
+      '<div class="row"><div><input type="password" id="newPw" autocomplete="new-password" placeholder="New password (8+ characters)"></div><div style="flex:0 0 auto"><button class="btn ghost" id="pwBtn">Update password</button></div></div>' +
+      '<div class="error" id="pwMsg"></div></form></div>';
   }
   function bindProfile() {
+    $("pwChange").onsubmit = async function (e) {
+      e.preventDefault();
+      var m = $("pwMsg"), p = $("newPw").value; m.className = "error"; m.textContent = "";
+      if (p.length < 8) { m.textContent = "Password must be at least 8 characters."; return; }
+      var r = await sb.auth.updateUser({ password: p });
+      if (r.error) { m.textContent = /different|same/i.test(r.error.message) ? "That's already your password." : "Could not update: " + r.error.message; return; }
+      $("newPw").value = ""; m.className = "notice"; m.textContent = "Password updated.";
+    };
     $("profForm").onsubmit = async function (e) {
       e.preventDefault();
       var err = $("profErr"); err.className = "error"; err.textContent = "";
