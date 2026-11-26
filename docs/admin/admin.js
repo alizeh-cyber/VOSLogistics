@@ -401,7 +401,9 @@
           '<button class="btn sm" data-approve="' + a.user_id + '">Approve</button><button class="btn danger sm" data-decline="' + a.user_id + '">Decline</button></span></li>';
       }).join("") + "</ul></div>";
     }
-    h += '<div class="card"><h2>Roster</h2><div class="toolbar"><input type="search" id="rq" placeholder="Search name, phone, email…" value="' + esc(rosterQ) + '"><span class="muted small" id="rcount"></span></div><div class="tablewrap" id="rtable"></div></div>';
+    h += '<div class="rstats" id="rstats"></div>' +
+      '<div class="card rostercard"><div class="toolbar" style="margin:0 0 12px"><input type="search" id="rq" placeholder="Search name, phone, email…" value="' + esc(rosterQ) + '"></div>' +
+      '<div class="pipe" id="rfilters" style="margin-bottom:6px"></div><div id="rtable"></div></div>';
     v.innerHTML = h;
     v.querySelectorAll("[data-approve]").forEach(function (b) { b.onclick = function () {
       var sel = v.querySelector('select[data-reqplan="' + b.dataset.approve + '"]');
@@ -410,29 +412,93 @@
     v.querySelectorAll("[data-decline]").forEach(function (b) { b.onclick = function () { if (confirm("Decline this account? They won't be able to see the schedule.")) setStatus(b.dataset.decline, "declined"); }; });
     $("rq").oninput = function () { rosterQ = this.value; rosterTable(); };
     rosterTable();
+    loadRosterActivity();
   }
+  var rosterF = "all", rosterOpen = {}, rosterAct = null;
+  async function loadRosterActivity() {
+    var today = iso(new Date());
+    var r = await Promise.all([
+      sb.from("shift_signups").select("user_id,slot_id").gte("slot_id", today),
+      sb.from("payroll_entries").select("email,tasks,week_start")
+    ]);
+    var up = {}, tasks = {}, lastWeek = {};
+    (r[0].data || []).forEach(function (x) { up[x.user_id] = (up[x.user_id] || 0) + 1; });
+    (r[1].data || []).forEach(function (x) { tasks[x.email] = (tasks[x.email] || 0) + x.tasks; if (!lastWeek[x.email] || x.week_start > lastWeek[x.email]) lastWeek[x.email] = x.week_start; });
+    rosterAct = { up: up, tasks: tasks, lastWeek: lastWeek };
+    if (tab === "roster" && $("rtable")) rosterTable();
+  }
+  function rosterState(a) {
+    var w = waiverFor(a.user_id);
+    if (a.status === "declined") return "removed";
+    if (!w || w.pay_plan !== a.pay_plan) return "needs";
+    return "active";
+  }
+  function initials(n) { var p = String(n || "").replace(/[^A-Za-z\s'-]/g, " ").trim().split(/\s+/).filter(Boolean); if (!p.length) return "?"; return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase(); }
   function rosterTable() {
     var q = rosterQ.trim().toLowerCase();
-    var rows = data.assoc.filter(function (a) { return a.status !== "pending"; }).filter(function (a) { return !q || [a.full_name, a.phone, a.email].join(" ").toLowerCase().indexOf(q) >= 0; })
-      .sort(function (a, b) { return a.full_name.localeCompare(b.full_name); });
-    $("rcount").textContent = rows.length + " associate" + (rows.length === 1 ? "" : "s");
-    if (!rows.length) { $("rtable").innerHTML = '<p class="muted">No associates yet. New accounts appear above for approval.</p>'; return; }
-    $("rtable").innerHTML = "<table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Pay plan</th><th>Waiver signed</th><th>Date signed</th><th>Account</th><th></th></tr></thead><tbody>" +
-      rows.map(function (a) {
-        var w = waiverFor(a.user_id);
-        return "<tr><td><b>" + esc(a.full_name) + '</b></td><td><a href="tel:' + esc(a.phone) + '">' + esc(a.phone) + '</a></td><td><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a></td>" +
-          '<td><select data-plan="' + a.user_id + '" title="' + esc(planTiers(a.pay_plan)) + '" style="width:auto">' + planOptions(a.pay_plan) + "</select></td>" +
-          "<td>" + (w ? (w.pay_plan === a.pay_plan ? '<span class="badge green">Yes</span>' : '<span class="badge amber" title="Signed under a different pay plan">Needs to re-sign</span>') : '<span class="badge amber">No</span>') + "</td><td>" + (w ? fmtDate(w.signed_at) : "—") + "</td>" +
-          "<td>" + badge(ASSOC_STATUS, a.status) + "</td><td>" +
-          (a.status === "approved" ? '<button class="btn danger sm" data-revoke="' + a.user_id + '">Remove access</button>' : '<button class="btn ghost sm" data-reapprove="' + a.user_id + '">Approve</button>') +
-          ' <button class="btn ghost sm" data-pw="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Set password</button>' +
-          (data.admins.indexOf(a.user_id) >= 0
-            ? ' <span class="badge blue">Admin</span> <button class="btn ghost sm" data-unadmin="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Remove admin</button>'
-            : (a.status === "approved" ? ' <button class="btn ghost sm" data-mkadmin="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Make admin</button>' : "")) +
-          "</td></tr>";
-      }).join("") + "</tbody></table>";
-    $("rtable").querySelectorAll("[data-revoke]").forEach(function (b) { b.onclick = function () { if (confirm("Remove this associate's access to the schedule? Their existing sign-ups stay until you remove them.")) setStatus(b.dataset.revoke, "declined"); }; });
-    $("rtable").querySelectorAll("[data-mkadmin],[data-unadmin]").forEach(function (b) {
+    var everyone = data.assoc.filter(function (a) { return a.status !== "pending"; });
+    var isAdm = function (a) { return data.admins.indexOf(a.user_id) >= 0; };
+    var counts = { all: everyone.length, active: 0, needs: 0, admins: 0, removed: 0 };
+    everyone.forEach(function (a) { counts[rosterState(a)]++; if (isAdm(a)) counts.admins++; });
+    $("rstats").innerHTML =
+      '<div class="rstat"><b>' + counts.all + '</b><span>Associates</span></div>' +
+      '<div class="rstat ok"><b>' + counts.active + '</b><span>Active</span></div>' +
+      '<div class="rstat warn"><b>' + counts.needs + '</b><span>Need to sign</span></div>' +
+      '<div class="rstat"><b>' + counts.admins + '</b><span>Admins</span></div>';
+    var F = [["all", "All"], ["active", "Active"], ["needs", "Needs agreement"], ["admins", "Admins"], ["removed", "Removed"]];
+    $("rfilters").innerHTML = F.map(function (f) {
+      if (f[0] === "removed" && !counts.removed && rosterF !== "removed") return "";
+      return '<button class="pstage' + (rosterF === f[0] ? " on" : "") + '" data-rf="' + f[0] + '">' + f[1] + " <b>" + counts[f[0]] + "</b></button>";
+    }).join("");
+    $("rfilters").querySelectorAll("[data-rf]").forEach(function (b) { b.onclick = function () { rosterF = b.dataset.rf; rosterTable(); }; });
+    var rows = everyone.filter(function (a) {
+      if (rosterF === "admins" && !isAdm(a)) return false;
+      if (["active", "needs", "removed"].indexOf(rosterF) >= 0 && rosterState(a) !== rosterF) return false;
+      var m = data.matches[a.user_id] || {};
+      return !q || [a.full_name, a.phone, a.email, m.login_email].join(" ").toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) { return a.full_name.localeCompare(b.full_name); });
+    if (!rows.length) { $("rtable").innerHTML = '<p class="muted" style="padding:14px 2px">' + (everyone.length ? "Nobody matches." : "No associates yet.") + "</p>"; return; }
+    var letter = "", html = "";
+    rows.forEach(function (a) {
+      var L = (a.full_name.trim()[0] || "#").toUpperCase();
+      if (L !== letter) { letter = L; html += '<div class="rletter">' + esc(L) + "</div>"; }
+      var w = waiverFor(a.user_id), st = rosterState(a), m = data.matches[a.user_id] || {};
+      var login = (m.login_email || a.email || "").toLowerCase();
+      var tags = (st === "active" ? '<span class="badge green">Agreement signed</span>' : st === "needs" ? '<span class="badge amber">' + (w ? "Needs to re-sign" : "Needs to sign") + "</span>" : '<span class="badge red">Access removed</span>') +
+        '<span class="badge">' + esc(planLabel(a.pay_plan)) + "</span>" + (isAdm(a) ? '<span class="badge blue">Admin</span>' : "");
+      var act = rosterAct ? { up: rosterAct.up[a.user_id] || 0, tasks: rosterAct.tasks[login] || 0, last: rosterAct.lastWeek[login] } : null;
+      html += '<details class="rperson" data-uid="' + a.user_id + '"' + (rosterOpen[a.user_id] ? " open" : "") + ">" +
+        '<summary><span class="avatar ' + st + '">' + esc(initials(a.full_name)) + '</span><span class="rwho"><b>' + esc(a.full_name) + '</b><span class="rsub">' + esc(a.phone || "No phone") + " · " + esc(a.email || login) + '</span></span><span class="rtags">' + tags + "</span></summary>" +
+        '<div class="rbody">' +
+          '<div class="rsec"><h4>Contact</h4><div class="toolbar" style="margin:0">' +
+            (a.phone ? '<a class="btn ghost sm" href="tel:' + esc(a.phone) + '">Call ' + esc(a.phone) + '</a><a class="btn ghost sm" href="sms:' + esc(a.phone) + '">Text</a>' : "") +
+            (a.email ? '<a class="btn ghost sm" href="mailto:' + esc(a.email) + '">Email</a>' : "") + "</div>" +
+            '<p class="tiny" style="margin-top:6px">Logs in with ' + esc(login) + " · joined " + fmtDate(a.created_at) + "</p></div>" +
+          '<div class="rsec"><h4>Pay plan</h4><select data-plan="' + a.user_id + '" style="max-width:320px">' + planOptions(a.pay_plan) + '</select><p class="tiny" style="margin-top:6px">' + esc(planTiers(a.pay_plan)) + "</p></div>" +
+          '<div class="rsec"><h4>Agreement</h4>' + (w
+            ? '<p class="small" style="margin:0 0 6px">' + (st === "needs" ? '<b class="warnt">Signed under an older pay plan</b> on ' : "Signed ") + esc(fmtDate(w.signed_at)) + '</p><button class="btn ghost sm" data-wpdf="' + esc(w.pdf_path) + '" data-n="' + esc(a.full_name) + '">Download signed PDF</button>'
+            : '<p class="small" style="margin:0">Not signed yet. They\'ll be asked to sign when they log in.</p>') + "</div>" +
+          '<div class="rsec"><h4>Activity</h4>' + (act
+            ? '<div class="ract"><div><b>' + act.up + '</b><span>upcoming shift' + (act.up === 1 ? "" : "s") + '</span></div><div><b>' + act.tasks + '</b><span>tasks on payroll</span></div><div><b>' + (act.last ? esc(fmtDate(act.last + "T12:00:00")) : "—") + "</b><span>last week worked</span></div></div>"
+            : '<p class="tiny">Loading…</p>') + "</div>" +
+          '<div class="rsec"><h4>Actions</h4><div class="toolbar" style="margin:0">' +
+            '<button class="btn ghost sm" data-pw="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Set temporary password</button>' +
+            (isAdm(a) ? '<button class="btn ghost sm" data-unadmin="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Remove admin</button>'
+              : (a.status === "approved" ? '<button class="btn ghost sm" data-mkadmin="' + a.user_id + '" data-n="' + esc(a.full_name) + '">Make admin</button>' : "")) +
+            (a.status === "approved" ? '<button class="btn danger sm" data-revoke="' + a.user_id + '">Remove access</button>' : '<button class="btn sm" data-reapprove="' + a.user_id + '">Restore access</button>') +
+          "</div></div>" +
+        "</div></details>";
+    });
+    $("rtable").innerHTML = html;
+    var T = $("rtable");
+    T.querySelectorAll("details.rperson").forEach(function (d) { d.addEventListener("toggle", function () { rosterOpen[d.dataset.uid] = d.open; }); });
+    T.querySelectorAll("[data-wpdf]").forEach(function (b) { b.onclick = async function () {
+      var r = await sb.storage.from("waivers").createSignedUrl(b.dataset.wpdf, 120, { download: "VOS_Logistics_Agreement_and_Waiver_" + b.dataset.n.replace(/[^a-z0-9]+/gi, "_") + ".pdf" });
+      if (r.error) { alert("Could not get that PDF."); return; }
+      location.href = r.data.signedUrl;
+    }; });
+    T.querySelectorAll("[data-revoke]").forEach(function (b) { b.onclick = function () { if (confirm("Remove this associate's access to the schedule? Their existing sign-ups stay until you remove them.")) setStatus(b.dataset.revoke, "declined"); }; });
+    T.querySelectorAll("[data-mkadmin],[data-unadmin]").forEach(function (b) {
       b.onclick = async function () {
         var make = !!b.dataset.mkadmin, uid = b.dataset.mkadmin || b.dataset.unadmin;
         var msg = make
@@ -444,7 +510,7 @@
         await loadAll(); draw();
       };
     });
-    $("rtable").querySelectorAll("[data-pw]").forEach(function (b) {
+    T.querySelectorAll("[data-pw]").forEach(function (b) {
       b.onclick = async function () {
         var words = ["Battery", "Scooter", "Charger", "Volt", "Lime", "Austin"];
         var suggestion = words[Math.floor(Math.random() * words.length)] + "-" + (1000 + Math.floor(Math.random() * 9000));
@@ -456,7 +522,7 @@
         alert("Done. " + b.dataset.n + "'s temporary password is: " + pw);
       };
     });
-    $("rtable").querySelectorAll("select[data-plan]").forEach(function (sel) {
+    T.querySelectorAll("select[data-plan]").forEach(function (sel) {
       var before = sel.value;
       sel.onchange = async function () {
         var w = waiverFor(sel.dataset.plan);
@@ -464,10 +530,10 @@
         var r = await sb.from("associates").update({ pay_plan: sel.value }).eq("user_id", sel.dataset.plan).select().single();
         if (r.error || r.data.pay_plan !== sel.value) { alert("Could not change the pay plan."); sel.value = before; return; }
         data.assoc = data.assoc.map(function (a) { return a.user_id === r.data.user_id ? r.data : a; });
-        rosterTable();
+        rosterOpen[r.data.user_id] = true; rosterTable();
       };
     });
-    $("rtable").querySelectorAll("[data-reapprove]").forEach(function (b) { b.onclick = function () { setStatus(b.dataset.reapprove, "approved"); }; });
+    T.querySelectorAll("[data-reapprove]").forEach(function (b) { b.onclick = function () { setStatus(b.dataset.reapprove, "approved"); }; });
   }
   async function setStatus(uid, st, plan) {
     var r = await sb.from("associates").update({ status: st }).eq("user_id", uid).select().single();
